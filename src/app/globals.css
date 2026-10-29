@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-papel text-tinta antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  .cartao {
+    @apply rounded-2xl bg-white p-4 shadow-sm ring-1 ring-tinta/5;
+  }
+  .botao-principal {
+    @apply w-full rounded-2xl bg-tinta px-5 py-4 text-lg font-semibold text-white active:scale-[0.99] disabled:opacity-40;
+  }
+  .botao-secundario {
+    @apply rounded-xl bg-white px-4 py-3 font-medium ring-1 ring-tinta/15 active:bg-tinta/5;
+  }
+  .chip {
+    @apply rounded-full bg-white px-4 py-2.5 text-base font-medium ring-1 ring-tinta/15 active:scale-95;
+  }
+  .chip-ativo {
+    @apply bg-tinta text-white ring-tinta;
+  }
+  .campo {
+    @apply w-full rounded-xl bg-white px-4 py-3 text-base ring-1 ring-tinta/15 focus:outline-none focus:ring-2 focus:ring-tinta;
+  }
+  .rotulo {
+    @apply mb-2 block text-sm font-medium text-tinta/60;
+  }
+}
