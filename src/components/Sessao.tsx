@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { carregarTudo, modoDemo, supabase, type Dados } from "@/lib/dados";
+import { carregarTudo, modoDemo, problemaDeConfiguracao, supabase, type Dados } from "@/lib/dados";
 import type { Membro } from "@/lib/tipos";
 
 type Contexto = {
@@ -30,8 +30,11 @@ export function Sessao({ children }: { children: ReactNode }) {
   const [dados, setDados] = useState<Dados | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
+  const problema = problemaDeConfiguracao();
+
   // Quem está usando
   useEffect(() => {
+    if (problema) return;
     if (modoDemo) {
       let id = "demo-diego";
       try {
@@ -44,7 +47,7 @@ export function Sessao({ children }: { children: ReactNode }) {
     s.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null));
     const { data } = s.auth.onAuthStateChange((_e, sessao) => setUserId(sessao?.user.id ?? null));
     return () => data.subscription.unsubscribe();
-  }, []);
+  }, [problema]);
 
   const recarregar = useCallback(async () => {
     try {
@@ -67,6 +70,17 @@ export function Sessao({ children }: { children: ReactNode }) {
     } catch {}
     setUserId(novo);
   }, [userId]);
+
+  if (problema) {
+    return (
+      <Aviso titulo="Falta acertar a configuração na Vercel">
+        <p className="mb-4 text-sm text-tinta/70">{problema}</p>
+        <p className="text-sm text-tinta/70">
+          Na Vercel: Settings &gt; Environment Variables. Corrija o valor e depois vá em Deployments &gt; ⋯ &gt; Redeploy.
+        </p>
+      </Aviso>
+    );
+  }
 
   if (naTelaDeEntrar) return <>{children}</>;
 

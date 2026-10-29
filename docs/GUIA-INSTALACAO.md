@@ -20,9 +20,9 @@ Leva uns 20 minutos. Se travar em qualquer passo, mande um print no projeto.
    - Outro com o e-mail da Jô e uma senha para ela, também com **Auto Confirm User**.
 5. Volte ao **SQL Editor**, nova query, cole o arquivo [`supabase/dados-iniciais.sql`](../supabase/dados-iniciais.sql), **troque** `EMAIL_DO_DIEGO` e `EMAIL_DA_JO` pelos e-mails do passo 4 e clique em **Run**. Isso libera vocês dois e já cadastra contas, cartões e rendas.
 6. Para ninguém mais conseguir criar conta: **Authentication** > **Sign In / Providers** > desligue **Allow new users to sign up** e salve.
-7. Pegue as duas chaves: **Project Settings** (engrenagem) > **API**. Copie:
-   - **Project URL**
-   - **anon public** (em "Project API keys")
+7. Pegue os dois valores (copie só o texto, sem aspas e sem espaços):
+   - **Project URL**: fica em **Project Settings** (engrenagem) > **Data API**, ou no botão **Connect** no topo. É algo como `https://abcdefgh.supabase.co`.
+   - **Chave pública**: em **Project Settings** > **API Keys**. Use a **Publishable key** (começa com `sb_publishable_`) ou, na aba "Legacy", a **anon public** (começa com `eyJ`). Nunca use a "secret" nem a "service_role".
 
 ## Parte 2: Vercel (o app no ar)
 
@@ -31,7 +31,7 @@ Leva uns 20 minutos. Se travar em qualquer passo, mande um print no projeto.
 3. Antes de clicar em Deploy, abra **Environment Variables** e crie as duas:
    - `NEXT_PUBLIC_SUPABASE_URL` = o Project URL do passo 7
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = a chave anon public do passo 7
-4. Clique em **Deploy** e espere uns 2 minutos. No fim aparece o endereço do app (algo como `financas-xxxx.vercel.app`).
+4. Clique em **Deploy** e espere uns 2 minutos. Se mudar alguma variável depois, vá em **Deployments** > **⋯** > **Redeploy** para valer. No fim aparece o endereço do app (algo como `financas-xxxx.vercel.app`).
 
 ## Parte 3: no celular
 

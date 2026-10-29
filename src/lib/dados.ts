@@ -19,14 +19,28 @@ export type Dados = {
 
 type Tabela = "contas" | "cartoes" | "fontes_renda" | "lancamentos" | "faturas_informadas";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const chave = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Tira espaços e aspas que às vezes vêm junto ao colar na Vercel.
+const limpar = (v: string | undefined) => (v ?? "").trim().replace(/^["']|["']$/g, "").trim();
+const url = limpar(process.env.NEXT_PUBLIC_SUPABASE_URL).replace(/\/+$/, "");
+const chave = limpar(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 export const modoDemo = !url || !chave;
 
+/** Explica o que está errado na configuração, ou null se estiver tudo certo. */
+export function problemaDeConfiguracao(): string | null {
+  if (modoDemo) return null;
+  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) {
+    return `NEXT_PUBLIC_SUPABASE_URL deveria ser o "Project URL" do Supabase, no formato https://xxxx.supabase.co. Hoje está: "${url.slice(0, 60)}"`;
+  }
+  if (chave.split(".").length !== 3 && !chave.startsWith("sb_publishable_")) {
+    return 'NEXT_PUBLIC_SUPABASE_ANON_KEY deveria ser a chave "anon public" (um texto longo que começa com eyJ) ou a "publishable key" (começa com sb_publishable_).';
+  }
+  return null;
+}
+
 let cliente: SupabaseClient | null = null;
 export function supabase(): SupabaseClient {
-  if (!cliente) cliente = createClient(url!, chave!);
+  if (!cliente) cliente = createClient(url, chave);
   return cliente;
 }
 
