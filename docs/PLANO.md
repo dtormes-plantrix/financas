@@ -50,7 +50,12 @@ Todo lançamento guarda **quem registrou** e **de quem é** (Diego, Jô ou casa)
 | Ajuda do Sady | a definir | |
 
 ### Contas bancárias
-Cada conta (banco de cada um) é cadastrada uma vez. O extrato importado entra na conta certa.
+| Conta | Dono | Observação |
+|---|---|---|
+| Mercado Pago | Diego | Conta com rendimento diário; paga a fatura do cartão Mercado Pago |
+| Sicredi | Jô | Tem cheque especial (limite R$ 20.000, juros de 6,85% ao mês); a fatura do Visa Gold é debitada nela |
+
+O extrato importado entra na conta certa.
 
 ### Formas de pagamento
 - Dinheiro
@@ -61,9 +66,11 @@ Cada conta (banco de cada um) é cadastrada uma vez. O extrato importado entra n
 ### Cartões de crédito
 | Cartão | Dono | Limite | Dia de fechamento | Dia de vencimento |
 |---|---|---|---|---|
-| Cartão 1 | Diego | a preencher | a preencher | a preencher |
-| Cartão 2 | Jô | a preencher | a preencher | a preencher |
-| Cartão 3 | Jô | a preencher | a preencher | a preencher |
+| Mercado Pago Visa | Diego | R$ 16.000 | dia 5 | dia 13 |
+| Sicredi Visa Gold | Jô | R$ 25.000 | dia 28 | dia 13 |
+| Nubank | Jô | R$ 48.316 (varia) | dia 20 | dia 27 ou 28 |
+
+Dados tirados das faturas de setembro e outubro de 2026. Alguns cartões têm mais de um número (físico, virtual, adicional), e o sistema junta tudo na fatura certa.
 
 **Regra da fatura:** compra feita **até** o dia de fechamento entra na fatura que vence neste mês. Compra feita **depois** do fechamento entra na fatura **seguinte**. O sistema calcula isso sozinho e mostra, por exemplo: "Esta compra vai para a fatura de dezembro".
 
@@ -87,14 +94,19 @@ No começo, o controle é **geral** (só a sobra do mês). Cada lançamento já 
 ### Importação do extrato e da fatura
 - Bancos de vocês: **Mercado Pago, Nubank e Sicredi**.
 - Formato principal: **PDF**, que é o que os apps desses bancos geram. Você sobe o PDF da fatura ou do extrato e o sistema lê as linhas (data, descrição, valor, parcela).
-- A leitura do PDF é feita com IA (Claude), porque cada banco monta o PDF de um jeito. Custo estimado: centavos por arquivo.
+- **Teste feito em 29/10/2026** com os PDFs reais (extrato Mercado Pago, extratos Sicredi, faturas Mercado Pago, Sicredi e Nubank): os PDFs têm texto, então um **leitor próprio para cada banco** lê tudo, sem IA e sem custo. Em todos, a soma das linhas bateu com o total do documento.
+- **Conferência automática:** depois de ler, o sistema compara a soma com o total impresso no PDF (ou com o saldo final, no extrato). Se não bater, avisa e não importa. Isso já pegou um PDF do Sicredi com o total impresso errado.
+- **Arquivo repetido:** se o mesmo extrato ou fatura for enviado duas vezes, o sistema reconhece e ignora.
+- IA (Claude) fica só como reserva, para um banco novo ou um PDF que mude de formato.
 - O sistema reconhece o que já foi lançado à mão e não duplica.
+- **O que não conta como gasto:** pagamento de fatura (as compras já foram contadas uma a uma na fatura) e transferência entre contas de vocês (ex.: Pix do Diego para a Jô). O sistema marca essas linhas sozinho.
 - O que for novo aparece numa lista para vocês conferirem e confirmarem com um toque. Nada entra sem confirmação.
 - Se algum banco também exportar CSV ou OFX, o sistema aceita.
 - Futuro: conexão automática com o banco (Open Finance), para não precisar subir arquivo.
 
-### Cartões
+### Cartões e cheque especial
 - Fatura atual e próximas faturas de cada cartão.
+- Quanto do cheque especial está em uso e quanto ele custa por mês em juros e IOF.
 - Limite usado e limite livre, contando as parcelas futuras.
 - Aviso quando a fatura estiver perto do vencimento.
 
@@ -124,8 +136,8 @@ Custo esperado: **zero** nesta etapa.
 
 ## 8. O que falta o Diego e a Jô informarem
 
-- [ ] Limite, dia de fechamento e dia de vencimento dos 3 cartões
-- [ ] Um PDF de fatura e um de extrato de cada banco (pode tapar dados pessoais), para testar a leitura
+- [ ] Extrato do Nubank (conta), se a Jô usar a conta além do cartão
+- [ ] Em qual conta entra a Plantrix e em qual entra o Studio
 - [ ] Valores do Studio Pilates e da Ajuda do Sady (mesmo que aproximados)
 - [ ] O controle atual do Studio (planilha ou foto), para trazer o histórico
 - [ ] Lista das contas fixas do mês (valor e dia de vencimento)
