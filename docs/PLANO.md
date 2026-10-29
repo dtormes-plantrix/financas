@@ -45,7 +45,7 @@ Todo lançamento guarda **quem registrou** e **de quem é** (Diego, Jô ou casa)
 ### Fontes de renda (separadas)
 | Fonte | Valor mensal | Observação |
 |---|---|---|
-| Plantrix | R$ 9.000 | Valor fixo informado |
+| Plantrix | R$ 9.000 | Recebida no Asaas (conta da empresa). O imposto da nota fica lá; só o restante é transferido para a conta pessoal e conta como renda da casa |
 | Studio Pilates | a definir | Jô já tem um controle básico; trazer esse histórico |
 | Ajuda do Sady | a definir | |
 
@@ -54,6 +54,8 @@ Todo lançamento guarda **quem registrou** e **de quem é** (Diego, Jô ou casa)
 |---|---|---|
 | Mercado Pago | Diego | Conta com rendimento diário; paga a fatura do cartão Mercado Pago |
 | Sicredi | Jô | Tem cheque especial (limite R$ 20.000, juros de 6,85% ao mês); a fatura do Visa Gold é debitada nela |
+
+O Asaas (conta da Plantrix) fica fora do sistema: a casa só enxerga a transferência que chega. O Nubank da Jô é só cartão.
 
 O extrato importado entra na conta certa.
 
@@ -136,8 +138,8 @@ Custo esperado: **zero** nesta etapa.
 
 ## 8. O que falta o Diego e a Jô informarem
 
-- [ ] Extrato do Nubank (conta), se a Jô usar a conta além do cartão
-- [ ] Em qual conta entra a Plantrix e em qual entra o Studio
+- [ ] Para qual conta pessoal vai a transferência da Plantrix, e se os R$ 9.000 são antes ou depois do imposto
+- [ ] Em qual conta entra o Studio
 - [ ] Valores do Studio Pilates e da Ajuda do Sady (mesmo que aproximados)
 - [ ] O controle atual do Studio (planilha ou foto), para trazer o histórico
 - [ ] Lista das contas fixas do mês (valor e dia de vencimento)
