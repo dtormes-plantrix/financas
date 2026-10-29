@@ -25,7 +25,7 @@
 
 ## Squad Registro
 - **Anotador:** transforma o lançamento em dado completo: valor, data, forma de pagamento, cartão, parcelas, pessoa, categoria.
-- **Importador:** lê o extrato (OFX ou CSV) e a fatura, e reconhece o que já estava lançado para não duplicar.
+- **Importador:** lê o PDF do extrato e da fatura (Mercado Pago, Nubank, Sicredi), e reconhece o que já estava lançado para não duplicar.
 - **Calendário de Faturas:** aplica a regra do fechamento e diz em qual fatura cada compra e parcela entram.
 
 ## Squad Painel

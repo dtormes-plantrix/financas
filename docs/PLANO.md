@@ -31,7 +31,7 @@ O sistema só funciona se for usado todo dia. Por isso, as regras de design:
 3. **O sistema adivinha o óbvio:** data de hoje, quem está logado, último cartão usado, categoria pela descrição.
 4. **Nada de termo técnico na tela:** "Sobra em dezembro", não "saldo projetado".
 5. **Feito para celular primeiro:** botões grandes, uma mão só, funciona como app instalado (ícone na tela).
-6. **Importar o extrato sem trabalho:** subir o arquivo do banco e o sistema separa o que já estava lançado (não duplica).
+6. **Importar o extrato sem trabalho:** subir o PDF do banco e o sistema separa o que já estava lançado (não duplica).
 7. **Testado com vocês dois:** cada tela nova passa pela Jô e pelo Diego antes de ser considerada pronta.
 
 ## 4. Cadastros básicos
@@ -85,10 +85,12 @@ No começo, o controle é **geral** (só a sobra do mês). Cada lançamento já 
 - Lista do mês com filtro por pessoa, forma de pagamento e fonte de renda.
 
 ### Importação do extrato e da fatura
-- Subir o arquivo do banco (OFX ou CSV, que quase todo banco exporta pelo app ou internet banking).
+- Bancos de vocês: **Mercado Pago, Nubank e Sicredi**.
+- Formato principal: **PDF**, que é o que os apps desses bancos geram. Você sobe o PDF da fatura ou do extrato e o sistema lê as linhas (data, descrição, valor, parcela).
+- A leitura do PDF é feita com IA (Claude), porque cada banco monta o PDF de um jeito. Custo estimado: centavos por arquivo.
 - O sistema reconhece o que já foi lançado à mão e não duplica.
-- O que for novo entra para vocês confirmarem com um toque.
-- Mesma coisa para a fatura do cartão (PDF ou CSV, conforme o banco permitir).
+- O que for novo aparece numa lista para vocês conferirem e confirmarem com um toque. Nada entra sem confirmação.
+- Se algum banco também exportar CSV ou OFX, o sistema aceita.
 - Futuro: conexão automática com o banco (Open Finance), para não precisar subir arquivo.
 
 ### Cartões
@@ -116,14 +118,14 @@ Custo esperado: **zero** nesta etapa.
 | **0. Plano** | Este documento e o mapa de squads | Diego aprovar |
 | **1. Base** | Login dos dois, cadastros (pessoas, fontes, contas, cartões com fechamento), lançar entradas e saídas, painel do mês atual | Diego e Jô lançam uma semana inteira pelo celular sem dificuldade |
 | **2. Mês seguinte** | Regra de fechamento, parcelas, faturas futuras, contas fixas, painel com o mês seguinte | O painel mostra a sobra do mês que vem e bate com a conta feita à mão |
-| **3. Extrato e fatura** | Importar OFX ou CSV do banco e do cartão, sem duplicar | Um mês inteiro importado e conferido |
+| **3. Extrato e fatura** | Importar o PDF da fatura e do extrato (Mercado Pago, Nubank, Sicredi), sem duplicar | Um mês inteiro importado e conferido |
 | **4. Orçamento por categoria** | Limite por categoria e alerta de estouro | Um mês fechado comparando previsto x realizado |
 | Depois | Conexão automática com o banco, agente no WhatsApp | Fora do escopo agora |
 
 ## 8. O que falta o Diego e a Jô informarem
 
 - [ ] Limite, dia de fechamento e dia de vencimento dos 3 cartões
-- [ ] Bancos que vocês usam (para testar a importação do extrato)
+- [ ] Um PDF de fatura e um de extrato de cada banco (pode tapar dados pessoais), para testar a leitura
 - [ ] Valores do Studio Pilates e da Ajuda do Sady (mesmo que aproximados)
 - [ ] O controle atual do Studio (planilha ou foto), para trazer o histórico
 - [ ] Lista das contas fixas do mês (valor e dia de vencimento)
