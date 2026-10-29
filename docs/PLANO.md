@@ -45,9 +45,9 @@ Todo lançamento guarda **quem registrou** e **de quem é** (Diego, Jô ou casa)
 ### Fontes de renda (separadas)
 | Fonte | Valor mensal | Observação |
 |---|---|---|
-| Plantrix | R$ 9.000 | Recebida no Asaas (conta da empresa). O imposto da nota fica lá; só o restante é transferido para a conta pessoal e conta como renda da casa |
-| Studio Pilates | a definir | Jô já tem um controle básico; trazer esse histórico |
-| Ajuda do Sady | a definir | |
+| Plantrix | R$ 9.000 bruto | Recebida no Asaas (conta da empresa). O imposto da nota fica lá; o restante é transferido para a conta Mercado Pago do Diego. Para a casa conta só o valor líquido que chega |
+| Studio Pilates | a definir | Entra no Sicredi da Jô. Ela já tem um controle básico; trazer esse histórico |
+| Ajuda do Sady | cerca de R$ 10.638 | Entra no Sicredi da Jô (valor visto nos extratos de setembro e outubro de 2026) |
 
 ### Contas bancárias
 | Conta | Dono | Observação |
@@ -138,8 +138,7 @@ Custo esperado: **zero** nesta etapa.
 
 ## 8. O que falta o Diego e a Jô informarem
 
-- [ ] Para qual conta pessoal vai a transferência da Plantrix, e se os R$ 9.000 são antes ou depois do imposto
-- [ ] Em qual conta entra o Studio
+- [ ] Percentual do imposto da nota da Plantrix (para prever o líquido)
 - [ ] Valores do Studio Pilates e da Ajuda do Sady (mesmo que aproximados)
 - [ ] O controle atual do Studio (planilha ou foto), para trazer o histórico
 - [ ] Lista das contas fixas do mês (valor e dia de vencimento)
