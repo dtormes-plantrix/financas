@@ -51,3 +51,17 @@ Leva uns 20 minutos. Se travar em qualquer passo, mande um print no projeto.
 ## Modo demonstração
 
 Sem as chaves do Supabase o app abre em **modo demonstração**: os dados ficam só no aparelho, com exemplos. Serve para testar as telas antes de configurar tudo.
+
+## Atualizações do banco de dados
+
+Quando o app ganhar uma função nova que precisa de mais espaço no banco, vai aparecer um arquivo novo em `supabase/migrations/`. Para cada um que você ainda não rodou:
+
+1. No Supabase, abra **SQL Editor** > **New query**.
+2. Cole o conteúdo do arquivo inteiro e clique em **Run**.
+
+| Arquivo | O que traz |
+|---|---|
+| `0001_inicial.sql` | Tabelas básicas e acesso de vocês dois (rodado na instalação) |
+| `0002_limites_e_parcelas.sql` | Limite usado dos cartões, saldo das contas, parcelas mensais (crédito e João) |
+
+Enquanto uma atualização não roda, o app avisa em **Ajustes**.

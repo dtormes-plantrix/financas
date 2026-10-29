@@ -9,6 +9,8 @@ export type Conta = {
   nome: string;
   dono: Dono;
   limite_cheque_especial: number | null;
+  saldo: number | null; // negativo = cheque especial em uso
+  saldo_atualizado_em: string | null;
   ativo: boolean;
 };
 
@@ -20,6 +22,8 @@ export type Cartao = {
   dia_fechamento: number;
   dia_vencimento: number;
   conta_pagamento_id: string | null;
+  limite_usado: number | null;
+  limite_atualizado_em: string | null;
   ativo: boolean;
 };
 
@@ -48,6 +52,7 @@ export type Lancamento = {
   fonte_id: string | null;
   categoria_id: string | null;
   de_quem: Dono;
+  compromisso_id?: string | null;
   criado_por: string | null;
   criado_em: string;
 };
@@ -57,4 +62,17 @@ export type FaturaInformada = {
   cartao_id: string;
   mes: string; // AAAA-MM (mês de vencimento)
   valor: number;
+};
+
+export type Compromisso = {
+  id: string;
+  nome: string;
+  valor: number;
+  dia_vencimento: number | null;
+  mes_inicial: string; // AAAA-MM em que vence a parcela_inicial
+  parcela_inicial: number;
+  total_parcelas: number | null; // null = repete todo mês
+  valor_total: number | null; // dívida: termina quando os pagamentos somarem este valor
+  conta_id: string | null;
+  ativo: boolean;
 };

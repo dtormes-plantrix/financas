@@ -4,7 +4,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DEMO } from "./demo";
 import type {
-  Cartao, Categoria, Conta, FaturaInformada, FonteRenda, Lancamento, Membro,
+  Cartao, Categoria, Compromisso, Conta, FaturaInformada, FonteRenda, Lancamento, Membro,
 } from "./tipos";
 
 export type Dados = {
@@ -15,9 +15,11 @@ export type Dados = {
   categorias: Categoria[];
   lancamentos: Lancamento[];
   faturasInformadas: FaturaInformada[];
+  compromissos: Compromisso[];
+  bancoDesatualizado?: boolean;
 };
 
-type Tabela = "contas" | "cartoes" | "fontes_renda" | "lancamentos" | "faturas_informadas";
+type Tabela = "contas" | "cartoes" | "fontes_renda" | "lancamentos" | "faturas_informadas" | "compromissos";
 
 // Tira espaços e aspas que às vezes vêm junto ao colar na Vercel.
 const limpar = (v: string | undefined) => (v ?? "").trim().replace(/^["']|["']$/g, "").trim();
@@ -47,7 +49,7 @@ export function supabase(): SupabaseClient {
 
 // ---------- modo demonstração ----------
 
-const CHAVE_DEMO = "financas-demo-v1";
+const CHAVE_DEMO = "financas-demo-v2";
 
 function lerDemo(): Dados {
   try {
@@ -69,6 +71,7 @@ const CAMPO_DEMO: Record<Tabela, keyof Dados> = {
   fontes_renda: "fontes",
   lancamentos: "lancamentos",
   faturas_informadas: "faturasInformadas",
+  compromissos: "compromissos",
 };
 
 // ---------- operações ----------
@@ -76,7 +79,7 @@ const CAMPO_DEMO: Record<Tabela, keyof Dados> = {
 export async function carregarTudo(): Promise<Dados> {
   if (modoDemo) return lerDemo();
   const s = supabase();
-  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas] = await Promise.all([
+  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos] = await Promise.all([
     s.from("membros").select("*"),
     s.from("contas").select("*").order("nome"),
     s.from("cartoes").select("*").order("nome"),
@@ -85,7 +88,11 @@ export async function carregarTudo(): Promise<Dados> {
     // compras parceladas de até 4 anos atrás ainda podem cair nas faturas atuais
     s.from("lancamentos").select("*").gte("data", dataLimite()).order("data", { ascending: false }).order("criado_em", { ascending: false }),
     s.from("faturas_informadas").select("*"),
+    s.from("compromissos").select("*").order("nome"),
   ]);
+  // Se a atualização 0002 do banco ainda não rodou, a tabela de parcelas não existe:
+  // o app continua funcionando e avisa em Ajustes.
+  const bancoDesatualizado = !!compromissos.error;
   const erro = [membros, contas, cartoes, fontes, categorias, lancamentos, faturas].find((r) => r.error);
   if (erro?.error) throw new Error(erro.error.message);
   return {
@@ -96,6 +103,12 @@ export async function carregarTudo(): Promise<Dados> {
     categorias: categorias.data as Categoria[],
     lancamentos: (lancamentos.data as Lancamento[]).map((l) => ({ ...l, valor: Number(l.valor) })),
     faturasInformadas: faturas.data as FaturaInformada[],
+    bancoDesatualizado,
+    compromissos: ((compromissos.data ?? []) as Compromisso[]).map((c) => ({
+      ...c,
+      valor: Number(c.valor),
+      valor_total: c.valor_total === null ? null : Number(c.valor_total),
+    })),
   };
 }
 
@@ -105,7 +118,9 @@ function dataLimite(): string {
 }
 
 /** Cria (sem id) ou atualiza (com id) um registro. */
-export async function salvar<T extends { id?: string }>(tabela: Tabela, registro: T): Promise<void> {
+type Registro = { id?: string; [campo: string]: unknown };
+
+export async function salvar<T extends Registro>(tabela: Tabela, registro: T): Promise<void> {
   if (modoDemo) {
     const d = lerDemo();
     const lista = d[CAMPO_DEMO[tabela]] as unknown as (T & { id: string })[];

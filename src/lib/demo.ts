@@ -17,13 +17,13 @@ export const DEMO: Dados = {
     { user_id: "demo-jo", nome: "Jô", apelido: "jo" },
   ],
   contas: [
-    { id: "c-mp", nome: "Mercado Pago", dono: "diego", limite_cheque_especial: null, ativo: true },
-    { id: "c-sicredi", nome: "Sicredi", dono: "jo", limite_cheque_especial: 20000, ativo: true },
+    { id: "c-mp", nome: "Mercado Pago", dono: "diego", limite_cheque_especial: null, saldo: 162.04, saldo_atualizado_em: null, ativo: true },
+    { id: "c-sicredi", nome: "Sicredi", dono: "jo", limite_cheque_especial: 20000, saldo: -8746.2, saldo_atualizado_em: null, ativo: true },
   ],
   cartoes: [
-    { id: "k-mp", nome: "Mercado Pago", dono: "diego", limite: 16000, dia_fechamento: 5, dia_vencimento: 13, conta_pagamento_id: "c-mp", ativo: true },
-    { id: "k-sicredi", nome: "Sicredi Visa Gold", dono: "jo", limite: 25000, dia_fechamento: 28, dia_vencimento: 13, conta_pagamento_id: "c-sicredi", ativo: true },
-    { id: "k-nubank", nome: "Nubank", dono: "jo", limite: 48316.49, dia_fechamento: 20, dia_vencimento: 27, conta_pagamento_id: null, ativo: true },
+    { id: "k-mp", nome: "Mercado Pago", dono: "diego", limite: 16000, dia_fechamento: 5, dia_vencimento: 13, conta_pagamento_id: "c-mp", limite_usado: 9525.04, limite_atualizado_em: null, ativo: true },
+    { id: "k-sicredi", nome: "Sicredi Visa Gold", dono: "jo", limite: 25000, dia_fechamento: 28, dia_vencimento: 13, conta_pagamento_id: "c-sicredi", limite_usado: 7024.81, limite_atualizado_em: null, ativo: true },
+    { id: "k-nubank", nome: "Nubank", dono: "jo", limite: 48316.49, dia_fechamento: 20, dia_vencimento: 27, conta_pagamento_id: null, limite_usado: null, limite_atualizado_em: null, ativo: true },
   ],
   fontes: [
     { id: "f-plantrix", nome: "Plantrix", valor_bruto: 9000, percentual_imposto: 6, dia_previsto: null, conta_id: "c-mp", ativo: true },
@@ -42,4 +42,8 @@ export const DEMO: Dados = {
     { id: "l4", tipo: "saida", valor: 622.12, data: dia(-3), descricao: "Águas Cuiabá", forma: "pix", conta_id: "c-sicredi", cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: "cat-2", de_quem: "casa", criado_por: "demo-jo", criado_em: agora },
   ],
   faturasInformadas: [],
+  compromissos: [
+    { id: "p-credito", nome: "Crédito contratado", valor: 1014.22, dia_vencimento: null, mes_inicial: "2026-11", parcela_inicial: 7, total_parcelas: 18, valor_total: null, conta_id: null, ativo: true },
+    { id: "p-joao", nome: "Devolver poupança do João", valor: 500, dia_vencimento: null, mes_inicial: "2026-11", parcela_inicial: 1, total_parcelas: null, valor_total: 8500, conta_id: null, ativo: true },
+  ],
 };
