@@ -1,26 +1,40 @@
 # Plano do sistema FINANÇAS
 
-Versão 1 · 29/10/2026 · Diego e Jô
+Versão 2 · 29/10/2026 · Diego e Jô
 
 ## 1. O que o sistema resolve
 
-Um lugar só, fácil de usar no celular, onde Diego e Jô registram tudo o que entra e sai, e que responde três perguntas:
+Um lugar só, fácil de usar no celular, onde Diego e Jô veem **em tempo real como está o mês atual e o mês seguinte**, a partir de:
 
-1. **Como estamos este mês?** Quanto entrou, quanto saiu, quanto sobra.
-2. **Como estão os próximos meses?** Quanto já está comprometido (faturas, parcelas, contas fixas) e quanto fica livre.
-3. **Posso comprar isso?** À vista, parcelado ou depois: qual opção cabe melhor.
+- o **extrato do banco** (entradas e saídas que já aconteceram);
+- as **faturas dos cartões** (o que já está comprometido, inclusive parcelas);
+- os **lançamentos do dia a dia** feitos por vocês (dinheiro, pix, cartão).
+
+A pergunta principal que a tela inicial responde: **"Quanto vai sobrar no mês que vem?"**
 
 ## 2. Os dois conceitos, em linguagem simples
 
 | | Fluxo de caixa | Orçamento |
 |---|---|---|
-| O que é | O que **já aconteceu** | O que **está planejado** |
-| Exemplo | "Paguei R$ 230 no mercado, no pix" | "Todo dia 5 entra a Plantrix, todo dia 10 vence a luz" |
-| Responde | Para onde foi o dinheiro | Quanto vai sobrar em cada mês futuro |
+| O que é | O que **já aconteceu** | O que **está previsto** |
+| Exemplo | "Paguei R$ 230 no mercado, no pix" | "Dia 5 entra a Plantrix, dia 10 vence a fatura" |
+| De onde vem | Extrato do banco e lançamentos | Rendas fixas, contas fixas, faturas e parcelas |
 
-O sistema junta os dois: **saldo de hoje + o que vai entrar − o que já está comprometido = o que está livre em cada mês.** É essa conta que alimenta o simulador de compras.
+O sistema junta os dois: **saldo de hoje + o que ainda vai entrar − o que já está comprometido = sobra prevista** do mês atual e do seguinte.
 
-## 3. Cadastros básicos
+## 3. Experiência de uso (prioridade do projeto)
+
+O sistema só funciona se for usado todo dia. Por isso, as regras de design:
+
+1. **Tela inicial com uma resposta só:** sobra prevista deste mês e do mês seguinte, em número grande, com cor (verde, amarelo, vermelho).
+2. **Lançar em até 3 toques:** botão "+" sempre visível; valor, forma de pagamento, pronto. O resto (descrição, categoria) é opcional.
+3. **O sistema adivinha o óbvio:** data de hoje, quem está logado, último cartão usado, categoria pela descrição.
+4. **Nada de termo técnico na tela:** "Sobra em dezembro", não "saldo projetado".
+5. **Feito para celular primeiro:** botões grandes, uma mão só, funciona como app instalado (ícone na tela).
+6. **Importar o extrato sem trabalho:** subir o arquivo do banco e o sistema separa o que já estava lançado (não duplica).
+7. **Testado com vocês dois:** cada tela nova passa pela Jô e pelo Diego antes de ser considerada pronta.
+
+## 4. Cadastros básicos
 
 ### Pessoas
 - Diego
@@ -35,7 +49,8 @@ Todo lançamento guarda **quem registrou** e **de quem é** (Diego, Jô ou casa)
 | Studio Pilates | a definir | Jô já tem um controle básico; trazer esse histórico |
 | Ajuda do Sady | a definir | |
 
-Cada entrada é marcada com a sua fonte, para ver quanto cada uma contribui e o que acontece se uma delas faltar.
+### Contas bancárias
+Cada conta (banco de cada um) é cadastrada uma vez. O extrato importado entra na conta certa.
 
 ### Formas de pagamento
 - Dinheiro
@@ -50,73 +65,70 @@ Cada entrada é marcada com a sua fonte, para ver quanto cada uma contribui e o 
 | Cartão 2 | Jô | a preencher | a preencher | a preencher |
 | Cartão 3 | Jô | a preencher | a preencher | a preencher |
 
-**Regra da fatura:** compra feita **até** o dia de fechamento entra na fatura que vence neste mês. Compra feita **depois** do fechamento entra na fatura **seguinte**. O sistema calcula isso sozinho na hora do registro e mostra, por exemplo: "Esta compra vai para a fatura de dezembro".
+**Regra da fatura:** compra feita **até** o dia de fechamento entra na fatura que vence neste mês. Compra feita **depois** do fechamento entra na fatura **seguinte**. O sistema calcula isso sozinho e mostra, por exemplo: "Esta compra vai para a fatura de dezembro".
 
-Compra parcelada gera uma parcela em cada fatura futura, já seguindo essa regra.
+Compra parcelada gera uma parcela em cada fatura futura, seguindo a mesma regra.
 
 ### Categorias
-No começo, o controle é **geral** (só o saldo do mês). Mesmo assim, cada lançamento já pode receber uma categoria opcional (mercado, casa, saúde, lazer...), para que depois seja fácil ligar o **orçamento por categoria** sem perder o histórico.
+No começo, o controle é **geral** (só a sobra do mês). Cada lançamento já pode receber uma categoria opcional (mercado, casa, saúde, lazer...), para que depois seja fácil ligar o **orçamento por categoria** sem perder o histórico.
 
-## 4. Funcionalidades
+## 5. Funcionalidades
 
-### Registro (dia a dia)
-- Lançar entrada ou saída em poucos toques: valor, descrição, forma de pagamento, cartão (se for crédito), parcelas, categoria (opcional).
-- Contas fixas e recorrentes (aluguel, luz, internet, assinaturas) cadastradas uma vez e repetidas todo mês.
+### Painel (tela inicial)
+- Sobra prevista do **mês atual** e do **mês seguinte**, atualizada a cada lançamento ou importação.
+- Abaixo, o que compõe o número: rendas que ainda vão entrar, contas fixas, faturas de cada cartão.
+- Toque em qualquer item para ver os detalhes.
+
+### Lançamentos do dia a dia
+- Entrada ou saída em até 3 toques: valor, forma de pagamento, cartão e parcelas (se for crédito).
+- Contas fixas e recorrentes cadastradas uma vez e repetidas todo mês.
 - Lista do mês com filtro por pessoa, forma de pagamento e fonte de renda.
+
+### Importação do extrato e da fatura
+- Subir o arquivo do banco (OFX ou CSV, que quase todo banco exporta pelo app ou internet banking).
+- O sistema reconhece o que já foi lançado à mão e não duplica.
+- O que for novo entra para vocês confirmarem com um toque.
+- Mesma coisa para a fatura do cartão (PDF ou CSV, conforme o banco permitir).
+- Futuro: conexão automática com o banco (Open Finance), para não precisar subir arquivo.
 
 ### Cartões
 - Fatura atual e próximas faturas de cada cartão.
 - Limite usado e limite livre, contando as parcelas futuras.
 - Aviso quando a fatura estiver perto do vencimento.
 
-### Visão dos próximos meses
-- Tabela dos próximos 6 a 12 meses: renda prevista, contas fixas, faturas e parcelas, **sobra prevista**.
-- Separação por fonte de renda (Plantrix, Studio, Sady).
+### Fechamento do mês
+- Resumo curto: o que entrou por fonte (Plantrix, Studio, Sady), o que saiu, o que sobrou.
 
-### Simulador de compra
-Informe o valor e veja, lado a lado:
-- **À vista** (pix ou débito, com desconto se houver): quanto sobra este mês.
-- **Parcelado** em N vezes: quanto cada mês futuro fica apertado e em qual fatura começa.
-- **Adiar** para o mês X: quando a sobra permite comprar sem aperto.
-
-O sistema indica a opção que mantém todos os meses com sobra positiva e uma reserva mínima (valor que vocês definem).
-
-### Agente no WhatsApp (fase final)
-- "Gastei 80 no posto no cartão da Jô" → vira um lançamento.
-- "Quanto sobra em dezembro?" → resposta com a visão do mês.
-- "Posso comprar uma geladeira de 3.500 em 10x?" → resposta do simulador.
-
-## 5. Tecnologia escolhida (e por quê)
+## 6. Tecnologia escolhida (e por quê)
 
 | Parte | Escolha | Por quê |
 |---|---|---|
 | App | Site que funciona como app no celular (PWA) | Abre pelo navegador, vira ícone na tela, sem loja de aplicativos |
 | Banco de dados e login | Supabase | Gratuito para esse tamanho, login para duas pessoas, dados na nuvem |
 | Hospedagem | Vercel | Gratuita, publica sozinha a cada mudança no GitHub |
-| WhatsApp | API oficial do WhatsApp + Claude | Lê as mensagens e conversa com o mesmo banco de dados |
 
-Custo esperado no começo: **zero**. Custo pode aparecer só na fase do WhatsApp (por mensagem).
+Custo esperado: **zero** nesta etapa.
 
-## 6. Fases
+## 7. Fases
 
 | Fase | O que entrega | Pronto quando |
 |---|---|---|
 | **0. Plano** | Este documento e o mapa de squads | Diego aprovar |
-| **1. MVP: Registro** | Login dos dois, cadastros (pessoas, fontes, cartões com fechamento), lançar entradas e saídas, resumo do mês | Diego e Jô registram um mês inteiro pelo celular |
-| **2. Cartões e meses futuros** | Regra de fechamento, parcelas, faturas futuras, contas fixas, visão de 12 meses | Dá para ver a sobra de cada mês até o fim de 2027 |
-| **3. Simulador** | Comparação à vista x parcelado x adiar, reserva mínima | Primeira decisão real de compra tomada com o simulador |
-| **4. Orçamento por categoria** | Limite por categoria, alerta de estouro | Um mês fechado comparando planejado x realizado |
-| **5. WhatsApp** | Registrar e consultar pelo WhatsApp | Uma semana de lançamentos feitos só pelo WhatsApp |
+| **1. Base** | Login dos dois, cadastros (pessoas, fontes, contas, cartões com fechamento), lançar entradas e saídas, painel do mês atual | Diego e Jô lançam uma semana inteira pelo celular sem dificuldade |
+| **2. Mês seguinte** | Regra de fechamento, parcelas, faturas futuras, contas fixas, painel com o mês seguinte | O painel mostra a sobra do mês que vem e bate com a conta feita à mão |
+| **3. Extrato e fatura** | Importar OFX ou CSV do banco e do cartão, sem duplicar | Um mês inteiro importado e conferido |
+| **4. Orçamento por categoria** | Limite por categoria e alerta de estouro | Um mês fechado comparando previsto x realizado |
+| Depois | Conexão automática com o banco, agente no WhatsApp | Fora do escopo agora |
 
-## 7. O que falta o Diego e a Jô informarem
+## 8. O que falta o Diego e a Jô informarem
 
 - [ ] Limite, dia de fechamento e dia de vencimento dos 3 cartões
+- [ ] Bancos que vocês usam (para testar a importação do extrato)
 - [ ] Valores do Studio Pilates e da Ajuda do Sady (mesmo que aproximados)
 - [ ] O controle atual do Studio (planilha ou foto), para trazer o histórico
 - [ ] Lista das contas fixas do mês (valor e dia de vencimento)
-- [ ] Reserva mínima que querem manter em conta
 - [ ] O e-mail que a Jô vai usar para entrar no sistema
 
-## 8. Squads e agentes
+## 9. Squads e agentes
 
 Ver [mapa-de-squads.md](mapa-de-squads.md).

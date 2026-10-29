@@ -1,47 +1,45 @@
 # FINANÇAS: mapa de squads
 
 ## Contexto
-- Sistema de finanças da casa de Diego e Jô: registro diário, cartões, meses futuros, simulador de compra e, no final, agente no WhatsApp.
+- Sistema de finanças da casa de Diego e Jô: ver em tempo real como está o mês atual e o seguinte, com base no extrato do banco, nos lançamentos do dia a dia e nas faturas dos cartões.
 - Rendas separadas por fonte: Plantrix (R$ 9.000/mês), Studio Pilates e Ajuda do Sady.
-- 3 cartões: 1 do Diego, 2 da Jô. Cada um tem dia de fechamento: compra depois do fechamento vai para a fatura seguinte.
+- 3 cartões: 1 do Diego, 2 da Jô. Compra depois do dia de fechamento vai para a fatura seguinte.
+- Prioridade: experiência de uso simples e intuitiva, no celular.
 - Plano completo em [PLANO.md](PLANO.md).
 
 ## Regras para todos os squads
-1. **Número vem do banco, nunca de memória.** Todo saldo, fatura ou previsão é calculado a partir dos lançamentos registrados.
-2. **Nada é apagado nem pago sem o Diego ou a Jô confirmarem.** O sistema sugere; quem decide são vocês.
+1. **Número vem do banco de dados, nunca de memória.** Todo saldo, fatura ou previsão é calculado a partir dos lançamentos e extratos.
+2. **Nada é apagado sem o Diego ou a Jô confirmarem.**
 3. **Separe sempre a fonte da renda** (Plantrix, Studio, Sady) e o dono do gasto (Diego, Jô ou casa).
-4. **Português simples**, valores em reais com centavos, datas no formato dd/mm/aaaa.
-5. **Previsão é previsão.** Toda resposta sobre o futuro diz em que dados se baseia e o que pode mudar.
+4. **Português simples na tela**, valores em reais com centavos, datas no formato dd/mm/aaaa.
+5. **Toda tela passa pelo teste da Jô e do Diego** antes de ser considerada pronta.
 
 ## Pedido → squad → entrega
 | Pedido | Squad | Entrega |
 |---|---|---|
-| "gastei", "recebi", "lança", "paguei" | Registro | Lançamento salvo e a fatura em que caiu |
-| "como está o mês", "quanto sobra", "faturas" | Planejamento | Resumo do mês e dos próximos meses |
-| "posso comprar", "parcelo ou à vista", "espero?" | Decisão | Comparação das 3 opções com a recomendada |
-| "fechou o mês", "como fomos" | Planejamento | Relatório do mês com fontes de renda |
-| "nova função", "deu erro", "muda a tela" | Construção | Mudança no app, via PR no GitHub |
+| "lança", "gastei", "recebi", "subi o extrato" | Registro | Lançamentos salvos, sem duplicar, na fatura certa |
+| "como está o mês", "quanto sobra", "faturas" | Painel | Sobra do mês atual e do seguinte, com o que compõe |
+| "fechou o mês", "como fomos" | Painel | Resumo do mês por fonte de renda |
+| "está difícil de usar", "muda a tela" | Experiência | Proposta de tela, testada com vocês |
+| "nova função", "deu erro" | Construção | Mudança no app, via PR no GitHub |
 
 ## Squad Registro
-- **Anotador:** transforma a frase ("80 no posto, cartão da Jô") em lançamento: valor, data, forma de pagamento, cartão, parcelas, pessoa, categoria.
-- **Calendário de Faturas:** aplica a regra do fechamento e diz em qual fatura cada compra e cada parcela entram.
-- **Conferente:** pergunta quando falta algo (qual cartão? quantas vezes?) e avisa sobre lançamento duplicado.
+- **Anotador:** transforma o lançamento em dado completo: valor, data, forma de pagamento, cartão, parcelas, pessoa, categoria.
+- **Importador:** lê o extrato (OFX ou CSV) e a fatura, e reconhece o que já estava lançado para não duplicar.
+- **Calendário de Faturas:** aplica a regra do fechamento e diz em qual fatura cada compra e parcela entram.
 
-## Squad Planejamento
-- **Previsor:** monta a visão dos próximos 12 meses (renda prevista por fonte, contas fixas, faturas, parcelas, sobra).
-- **Guardião dos Cartões:** acompanha limite usado e livre de cada cartão e avisa vencimentos.
-- **Orçamentista** (fase 4): cuida dos limites por categoria e avisa quando um estourar.
-- **Relator:** fecha o mês com um resumo curto: o que entrou por fonte, o que saiu, o que sobrou.
+## Squad Painel
+- **Previsor:** calcula a sobra do mês atual e do seguinte (renda prevista por fonte, contas fixas, faturas, parcelas).
+- **Guardião dos Cartões:** acompanha limite usado e livre e avisa vencimentos.
+- **Relator:** fecha o mês com um resumo curto.
+- **Orçamentista** (fase 4): limites por categoria e alerta de estouro.
 
-## Squad Decisão
-- **Simulador:** calcula à vista, parcelado em N vezes e adiar para o mês X.
-- **Conselheiro:** recomenda a opção que mantém todos os meses com sobra e a reserva mínima, explicando o porquê em 3 linhas.
+## Squad Experiência
+- **Designer de Telas:** desenha cada tela pensando no celular, em uma mão e em até 3 toques.
+- **Revisor de Linguagem:** troca termo técnico por palavra do dia a dia.
+- **Testador com Usuário:** roteiro curto para Diego e Jô testarem cada tela, e anota o que travou.
 
-## Squad WhatsApp (fase 5)
-- **Porteiro:** recebe a mensagem, identifica se é Diego ou Jô e passa ao squad certo usando a tabela acima.
-- **Respondedor:** devolve a resposta curta no WhatsApp, com confirmação antes de salvar.
-
-## Squad Construção (quem desenvolve o app)
-- **Arquiteto:** decide como cada função é feita e mantém o banco organizado.
+## Squad Construção
+- **Arquiteto:** decide como cada função é feita e mantém o banco de dados organizado.
 - **Desenvolvedor:** escreve o código, sempre em PR para o Diego aprovar.
-- **Testador:** confere as contas (fatura, parcelas, sobra) com exemplos reais antes de publicar.
+- **Conferente de Contas:** testa fatura, parcelas e sobra com exemplos reais antes de publicar.
