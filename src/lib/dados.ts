@@ -21,7 +21,8 @@ type Tabela = "contas" | "cartoes" | "fontes_renda" | "lancamentos" | "faturas_i
 
 // Tira espaços e aspas que às vezes vêm junto ao colar na Vercel.
 const limpar = (v: string | undefined) => (v ?? "").trim().replace(/^["']|["']$/g, "").trim();
-const url = limpar(process.env.NEXT_PUBLIC_SUPABASE_URL).replace(/\/+$/, "");
+// O Supabase às vezes mostra o endereço com "/rest/v1/" no fim; o app só precisa do começo.
+const url = limpar(process.env.NEXT_PUBLIC_SUPABASE_URL).replace(/\/+$/, "").replace(/\/rest\/v1$/, "");
 const chave = limpar(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
 export const modoDemo = !url || !chave;
