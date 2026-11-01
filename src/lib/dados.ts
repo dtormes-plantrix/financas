@@ -16,7 +16,8 @@ export type Dados = {
   lancamentos: Lancamento[];
   faturasInformadas: FaturaInformada[];
   compromissos: Compromisso[];
-  bancoDesatualizado?: boolean;
+  /** Nome do arquivo de atualização do banco que ainda não rodou, se houver. */
+  faltaAtualizar?: string | null;
 };
 
 type Tabela = "contas" | "cartoes" | "fontes_renda" | "lancamentos" | "faturas_informadas" | "compromissos";
@@ -49,7 +50,7 @@ export function supabase(): SupabaseClient {
 
 // ---------- modo demonstração ----------
 
-const CHAVE_DEMO = "financas-demo-v2";
+const CHAVE_DEMO = "financas-demo-v3";
 
 function lerDemo(): Dados {
   try {
@@ -79,7 +80,7 @@ const CAMPO_DEMO: Record<Tabela, keyof Dados> = {
 export async function carregarTudo(): Promise<Dados> {
   if (modoDemo) return lerDemo();
   const s = supabase();
-  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos] = await Promise.all([
+  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias] = await Promise.all([
     s.from("membros").select("*"),
     s.from("contas").select("*").order("nome"),
     s.from("cartoes").select("*").order("nome"),
@@ -89,10 +90,14 @@ export async function carregarTudo(): Promise<Dados> {
     s.from("lancamentos").select("*").gte("data", dataLimite()).order("data", { ascending: false }).order("criado_em", { ascending: false }),
     s.from("faturas_informadas").select("*"),
     s.from("compromissos").select("*").order("nome"),
+    s.from("lancamentos").select("conta_destino_id").limit(1),
   ]);
-  // Se a atualização 0002 do banco ainda não rodou, a tabela de parcelas não existe:
-  // o app continua funcionando e avisa em Ajustes.
-  const bancoDesatualizado = !!compromissos.error;
+  // Se uma atualização do banco ainda não rodou, o app continua funcionando e avisa em Ajustes.
+  const faltaAtualizar = compromissos.error
+    ? "0002_limites_e_parcelas.sql"
+    : transferencias.error
+      ? "0003_transferencias.sql"
+      : null;
   const erro = [membros, contas, cartoes, fontes, categorias, lancamentos, faturas].find((r) => r.error);
   if (erro?.error) throw new Error(erro.error.message);
   return {
@@ -103,7 +108,7 @@ export async function carregarTudo(): Promise<Dados> {
     categorias: categorias.data as Categoria[],
     lancamentos: (lancamentos.data as Lancamento[]).map((l) => ({ ...l, valor: Number(l.valor) })),
     faturasInformadas: faturas.data as FaturaInformada[],
-    bancoDesatualizado,
+    faltaAtualizar,
     compromissos: ((compromissos.data ?? []) as Compromisso[]).map((c) => ({
       ...c,
       valor: Number(c.valor),

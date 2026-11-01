@@ -1,6 +1,6 @@
 export type Dono = "diego" | "jo" | "casa";
 export type Forma = "pix" | "debito" | "dinheiro" | "credito";
-export type TipoLancamento = "entrada" | "saida";
+export type TipoLancamento = "entrada" | "saida" | "transferencia";
 
 export type Membro = { user_id: string; nome: string; apelido: Dono };
 
@@ -32,6 +32,7 @@ export type FonteRenda = {
   nome: string;
   valor_bruto: number | null;
   percentual_imposto: number;
+  descontos_fixos?: number | null; // contabilidade, INSS etc., em reais
   dia_previsto: number | null;
   conta_id: string | null;
   ativo: boolean;
@@ -46,7 +47,8 @@ export type Lancamento = {
   data: string; // AAAA-MM-DD
   descricao: string | null;
   forma: Forma;
-  conta_id: string | null;
+  conta_id: string | null; // na transferência, a conta de onde o dinheiro sai
+  conta_destino_id?: string | null; // na transferência, a conta para onde vai
   cartao_id: string | null;
   parcelas: number;
   fonte_id: string | null;

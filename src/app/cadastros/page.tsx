@@ -37,10 +37,13 @@ export default function Ajustes() {
         </div>
       )}
 
-      {dados.bancoDesatualizado && (
+      {dados.faltaAtualizar && (
         <div className="mb-6 rounded-2xl bg-vermelho-claro p-4 text-sm">
           <strong>Falta atualizar o banco de dados.</strong> No Supabase, abra o SQL Editor, cole o arquivo{" "}
-          <code>supabase/migrations/0002_limites_e_parcelas.sql</code> e clique em Run. Sem isso, limites e parcelas não salvam.
+          <code>supabase/migrations/{dados.faltaAtualizar}</code> e clique em Run.
+          {dados.faltaAtualizar.startsWith("0002")
+            ? " Sem isso, limites e parcelas não salvam."
+            : " Sem isso, as transferências entre contas e os custos fixos das rendas não salvam."}
         </div>
       )}
 
@@ -183,7 +186,8 @@ function EditorFonte({ fonte }: { fonte: FonteRenda }) {
   const [bruto, setBruto] = useState(paraTexto(fonte.valor_bruto));
   const [imposto, setImposto] = useState(paraTexto(fonte.percentual_imposto));
   const [dia, setDia] = useState(paraTexto(fonte.dia_previsto));
-  const previa = liquido({ ...fonte, valor_bruto: numeroOuNulo(bruto), percentual_imposto: lerValor(imposto) });
+  const [descontos, setDescontos] = useState(paraTexto(fonte.descontos_fixos || null));
+  const previa = liquido({ ...fonte, valor_bruto: numeroOuNulo(bruto), percentual_imposto: lerValor(imposto), descontos_fixos: lerValor(descontos) });
 
   return (
     <div className="cartao space-y-3">
@@ -196,6 +200,9 @@ function EditorFonte({ fonte }: { fonte: FonteRenda }) {
         <Campo rotulo="Imposto %" valor={imposto} onChange={setImposto} />
         <Campo rotulo="Dia" valor={dia} onChange={setDia} />
       </div>
+      {fonte.descontos_fixos !== undefined && (
+        <Campo rotulo="Custos fixos descontados antes de chegar (contabilidade, INSS), em R$" valor={descontos} onChange={setDescontos} />
+      )}
       <BotaoSalvar
         estado={estado}
         onClick={() =>
@@ -205,6 +212,7 @@ function EditorFonte({ fonte }: { fonte: FonteRenda }) {
               valor_bruto: numeroOuNulo(bruto),
               percentual_imposto: lerValor(imposto),
               dia_previsto: dia ? Math.min(31, Math.max(1, Number(dia))) : null,
+              ...(fonte.descontos_fixos !== undefined ? { descontos_fixos: lerValor(descontos) } : {}),
             }),
           )
         }
@@ -275,11 +283,8 @@ function EditorCompromisso({ compromisso: c }: { compromisso: Compromisso }) {
         <Campo rotulo="Valor por mês" valor={valor} onChange={setValor} />
         <Campo rotulo={divida ? "Total a devolver" : "Total de parcelas"} valor={total} onChange={setTotal} />
         <Campo rotulo={divida ? "Começa em (mês/ano)" : `Parcela ${parcelaInicial} vence em (mês/ano)`} valor={inicio} onChange={setInicio} />
-        {divida ? (
-          <Campo rotulo="Dia de pagar" valor={dia} onChange={setDia} />
-        ) : (
-          <Campo rotulo="Número dessa parcela" valor={parcelaInicial} onChange={setParcelaInicial} />
-        )}
+        {!divida && <Campo rotulo="Número dessa parcela" valor={parcelaInicial} onChange={setParcelaInicial} />}
+        <Campo rotulo="Dia de pagar" valor={dia} onChange={setDia} />
       </div>
       <div className="flex items-center justify-between">
         <BotaoSalvar

@@ -19,7 +19,7 @@ export default function Lancamentos() {
   const lista = dados.lancamentos
     .filter((l) => noMes(l.data, mes))
     .filter((l) => pessoa === "todos" || l.de_quem === pessoa)
-    .filter((l) => forma === "todas" || l.forma === forma);
+    .filter((l) => forma === "todas" || (l.forma === forma && l.tipo !== "transferencia"));
 
   const entradas = lista.filter((l) => l.tipo === "entrada").reduce((s, l) => s + l.valor, 0);
   const saidas = lista.filter((l) => l.tipo === "saida").reduce((s, l) => s + l.valor, 0);
@@ -75,20 +75,23 @@ export default function Lancamentos() {
           <h2 className="mb-2 text-sm font-medium text-tinta/60">{dataCurta(dia)}</h2>
           <div className="cartao divide-y divide-tinta/5 p-0">
             {itens.map((l) => {
-              const onde = l.forma === "credito" ? nome(l.cartao_id, dados.cartoes) : nome(l.conta_id, dados.contas);
-              const titulo = l.descricao || nome(l.fonte_id, dados.fontes) || nome(l.categoria_id, dados.categorias) || (l.tipo === "entrada" ? "Entrada" : "Saída");
+              const transf = l.tipo === "transferencia";
+              const onde = transf
+                ? `${nome(l.conta_id, dados.contas) ?? "?"} → ${nome(l.conta_destino_id ?? null, dados.contas) ?? "?"}`
+                : l.forma === "credito" ? nome(l.cartao_id, dados.cartoes) : nome(l.conta_id, dados.contas);
+              const titulo = l.descricao || nome(l.fonte_id, dados.fontes) || nome(l.categoria_id, dados.categorias) || (l.tipo === "entrada" ? "Entrada" : transf ? "Entre contas" : "Saída");
               return (
                 <Link key={l.id} href={`/lancar?id=${l.id}`} className="flex items-center justify-between gap-3 px-4 py-3 active:bg-tinta/5">
                   <span className="min-w-0">
                     <span className="block truncate">{titulo}</span>
                     <span className="block text-xs text-tinta/50">
-                      {NOME_FORMA[l.forma]}
+                      {transf ? "Entre contas" : NOME_FORMA[l.forma]}
                       {onde ? ` · ${onde}` : ""}
                       {l.parcelas > 1 ? ` · ${l.parcelas}x` : ""} · {NOME_DONO[l.de_quem]}
                     </span>
                   </span>
-                  <span className={`shrink-0 font-medium tabular-nums ${l.tipo === "entrada" ? "text-verde" : ""}`}>
-                    {l.tipo === "entrada" ? "+" : "−"} {reais(l.valor)}
+                  <span className={`shrink-0 font-medium tabular-nums ${l.tipo === "entrada" ? "text-verde" : transf ? "text-tinta/50" : ""}`}>
+                    {l.tipo === "entrada" ? "+" : transf ? "⇄" : "−"} {reais(l.valor)}
                   </span>
                 </Link>
               );

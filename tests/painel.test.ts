@@ -162,3 +162,31 @@ describe("limites", () => {
     expect(s.chequeLivre).toBe(12000);
   });
 });
+
+describe("transferências entre contas", () => {
+  const mp: Conta = { id: "mp", nome: "Mercado Pago", dono: "diego", limite_cheque_especial: null, saldo: 5000, saldo_atualizado_em: "2026-11-01", ativo: true };
+  const sic: Conta = { id: "sic", nome: "Sicredi", dono: "jo", limite_cheque_especial: 20000, saldo: -2000, saldo_atualizado_em: "2026-11-01", ativo: true };
+  const transf = lanc({ tipo: "transferencia", valor: 3000, forma: "pix", conta_id: "mp", conta_destino_id: "sic", data: "2026-11-02" });
+
+  it("muda o saldo das duas contas, mas o total da família não muda", () => {
+    const [a, b] = situacaoDasContas([mp, sic], [transf]);
+    expect(a.saldo).toBe(2000);
+    expect(b.saldo).toBe(1000);
+    expect(b.chequeEmUso).toBe(0);
+    expect(a.saldo! + b.saldo!).toBe(3000);
+  });
+
+  it("não conta como renda nem como gasto no mês", () => {
+    const r = resumoDoMes(m(2026, 11), { lancamentos: [transf], cartoes: [], fontes: [], faturasInformadas: [] });
+    expect(r.recebido).toBe(0);
+    expect(r.gastoAVista).toBe(0);
+    expect(r.sobra).toBe(0);
+  });
+
+  it("renda com custos fixos: imposto em % e contabilidade/INSS em reais", () => {
+    const r = resumoDoMes(m(2026, 11), {
+      lancamentos: [], cartoes: [], fontes: [{ ...plantrix, descontos_fixos: 1000 }], faturasInformadas: [],
+    });
+    expect(r.aReceber).toBe(9000 - 540 - 1000);
+  });
+});

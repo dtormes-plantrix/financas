@@ -52,6 +52,7 @@ function Lancar() {
   const [forma, setForma] = useState<Forma>("pix");
   const [cartaoId, setCartaoId] = useState<string | undefined>(meuCartao?.id);
   const [contaId, setContaId] = useState<string | undefined>(minhaConta?.id);
+  const [destinoId, setDestinoId] = useState<string | undefined>(contas.find((c) => c.id !== minhaConta?.id)?.id);
   const [parcelas, setParcelas] = useState(1);
   const [fonteId, setFonteId] = useState<string | null>(null);
   const [descricao, setDescricao] = useState("");
@@ -71,6 +72,7 @@ function Lancar() {
       setForma(editando.forma);
       setCartaoId(editando.cartao_id ?? meuCartao?.id);
       setContaId(editando.conta_id ?? minhaConta?.id);
+      if (editando.conta_destino_id) setDestinoId(editando.conta_destino_id);
       setParcelas(editando.parcelas);
       setFonteId(editando.fonte_id);
       setDescricao(editando.descricao ?? "");
@@ -91,6 +93,8 @@ function Lancar() {
   const valor = lerValor(valorTexto);
   const cartao = cartoes.find((c) => c.id === cartaoId);
   const ehCredito = tipo === "saida" && forma === "credito";
+  const ehTransferencia = tipo === "transferencia";
+  const transferenciaInvalida = ehTransferencia && (!contaId || !destinoId || contaId === destinoId);
 
   const previa = useMemo(() => {
     if (!ehCredito || !cartao || valor <= 0) return null;
@@ -105,8 +109,13 @@ function Lancar() {
       campoValor.current?.focus();
       return;
     }
+    if (transferenciaInvalida) {
+      setAviso("Escolha contas diferentes em De e Para.");
+      setTimeout(() => setAviso(null), 3000);
+      return;
+    }
     setSalvando(true);
-    const formaFinal: Forma = tipo === "entrada" && forma === "credito" ? "pix" : forma;
+    const formaFinal: Forma = ehTransferencia ? "pix" : tipo === "entrada" && forma === "credito" ? "pix" : forma;
     const registro: Partial<Lancamento> = {
       id: editando?.id,
       tipo,
@@ -120,6 +129,7 @@ function Lancar() {
       fonte_id: tipo === "entrada" ? fonteId : null,
       categoria_id: categoriaId || null,
       de_quem: deQuem,
+      ...(ehTransferencia || editando?.conta_destino_id ? { conta_destino_id: ehTransferencia ? destinoId ?? null : null } : {}),
     };
     try {
       await salvar("lancamentos", registro);
@@ -153,14 +163,14 @@ function Lancar() {
 
   return (
     <Pagina>
-      <div className="mb-5 grid grid-cols-2 rounded-2xl bg-white p-1 ring-1 ring-tinta/10">
-        {(["saida", "entrada"] as const).map((t) => (
+      <div className="mb-5 grid grid-cols-3 rounded-2xl bg-white p-1 ring-1 ring-tinta/10">
+        {(["saida", "entrada", "transferencia"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTipo(t)}
-            className={`rounded-xl py-3 text-base font-semibold ${tipo === t ? (t === "saida" ? "bg-vermelho text-white" : "bg-verde text-white") : "text-tinta/60"}`}
+            className={`rounded-xl py-3 text-base font-semibold ${tipo === t ? (t === "saida" ? "bg-vermelho text-white" : t === "entrada" ? "bg-verde text-white" : "bg-tinta text-white") : "text-tinta/60"}`}
           >
-            {t === "saida" ? "Saiu" : "Entrou"}
+            {t === "saida" ? "Saiu" : t === "entrada" ? "Entrou" : "Entre contas"}
           </button>
         ))}
       </div>
@@ -179,6 +189,30 @@ function Lancar() {
         />
       </div>
 
+      {ehTransferencia ? (
+        <>
+          <p className="mb-4 rounded-xl bg-papel px-4 py-3 text-sm text-tinta/70">
+            Dinheiro passando de uma conta de vocês para outra. Não conta como gasto nem como renda, só muda o saldo das duas contas.
+          </p>
+          <span className="rotulo">Saiu de</span>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {contas.map((c) => (
+              <button key={c.id} onClick={() => setContaId(c.id)} className={`chip ${contaId === c.id ? "chip-ativo" : ""}`}>
+                {c.nome} <span className="opacity-60">· {NOME_DONO[c.dono]}</span>
+              </button>
+            ))}
+          </div>
+          <span className="rotulo">Foi para</span>
+          <div className="mb-5 flex flex-wrap gap-2">
+            {contas.map((c) => (
+              <button key={c.id} onClick={() => setDestinoId(c.id)} className={`chip ${destinoId === c.id ? "chip-ativo" : ""}`} disabled={c.id === contaId}>
+                {c.nome} <span className="opacity-60">· {NOME_DONO[c.dono]}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+      <>
       <span className="rotulo">{tipo === "saida" ? "Como pagou" : "Como recebeu"}</span>
       <div className="mb-5 flex flex-wrap gap-2">
         {FORMAS.filter((f) => tipo === "saida" || f !== "credito").map((f) => (
@@ -243,6 +277,8 @@ function Lancar() {
             ))}
           </div>
         </>
+      )}
+      </>
       )}
 
       <button onClick={() => setMaisDetalhes(!maisDetalhes)} className="mb-4 text-sm font-medium text-tinta/60 underline">

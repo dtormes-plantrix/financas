@@ -42,7 +42,8 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
 
 export function liquido(fonte: FonteRenda): number {
   if (!fonte.valor_bruto) return 0;
-  return r2(fonte.valor_bruto * (1 - (fonte.percentual_imposto || 0) / 100));
+  const imposto = fonte.valor_bruto * ((fonte.percentual_imposto || 0) / 100);
+  return r2(Math.max(0, fonte.valor_bruto - imposto - (Number(fonte.descontos_fixos) || 0)));
 }
 
 export function noMes(data: string, mes: Mes): boolean {
@@ -246,8 +247,18 @@ export function situacaoDasContas(contas: Conta[], lancamentos: Lancamento[]): S
       }
       const desde = conta.saldo_atualizado_em ?? "";
       const movimento = lancamentos
-        .filter((l) => l.conta_id === conta.id && l.forma !== "credito" && l.data > desde)
-        .reduce((s, l) => s + (l.tipo === "entrada" ? 1 : -1) * Number(l.valor), 0);
+        .filter((l) => l.forma !== "credito" && l.data > desde)
+        .reduce((s, l) => {
+          const v = Number(l.valor);
+          if (l.tipo === "transferencia") {
+            // sai de uma conta e entra na outra: o total da família não muda
+            if (l.conta_id === conta.id) s -= v;
+            if (l.conta_destino_id === conta.id) s += v;
+            return s;
+          }
+          if (l.conta_id !== conta.id) return s;
+          return s + (l.tipo === "entrada" ? v : -v);
+        }, 0);
       const saldo = r2(Number(conta.saldo) + movimento);
       const chequeEmUso = r2(Math.max(0, -saldo));
       const chequeLivre = conta.limite_cheque_especial ? r2(Number(conta.limite_cheque_especial) - chequeEmUso) : null;
