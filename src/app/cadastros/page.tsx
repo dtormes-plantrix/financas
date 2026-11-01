@@ -43,7 +43,9 @@ export default function Ajustes() {
           <code>supabase/migrations/{dados.faltaAtualizar}</code> e clique em Run.
           {dados.faltaAtualizar.startsWith("0002")
             ? " Sem isso, limites e parcelas não salvam."
-            : " Sem isso, as transferências entre contas e os custos fixos das rendas não salvam."}
+            : dados.faltaAtualizar.startsWith("0003")
+              ? " Sem isso, as transferências entre contas e os custos fixos das rendas não salvam."
+              : " Sem isso, as seções do Studio Pilates e do Espaço Soletti não aparecem."}
         </div>
       )}
 

@@ -4,7 +4,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DEMO } from "./demo";
 import type {
-  Cartao, Categoria, Compromisso, Conta, FaturaInformada, FonteRenda, Lancamento, Membro,
+  Cartao, Categoria, Compromisso, Conta, FaturaInformada, FonteRenda, Lancamento, Membro, Negocio,
 } from "./tipos";
 
 export type Dados = {
@@ -16,11 +16,14 @@ export type Dados = {
   lancamentos: Lancamento[];
   faturasInformadas: FaturaInformada[];
   compromissos: Compromisso[];
+  negocios: Negocio[];
+  /** Lançamentos do Studio e do Espaço. Ficam fora de `lancamentos`, que é só da casa. */
+  lancamentosNegocios: Lancamento[];
   /** Nome do arquivo de atualização do banco que ainda não rodou, se houver. */
   faltaAtualizar?: string | null;
 };
 
-type Tabela = "contas" | "cartoes" | "fontes_renda" | "lancamentos" | "faturas_informadas" | "compromissos";
+type Tabela = "contas" | "cartoes" | "fontes_renda" | "lancamentos" | "faturas_informadas" | "compromissos" | "negocios";
 
 // Tira espaços e aspas que às vezes vêm junto ao colar na Vercel.
 const limpar = (v: string | undefined) => (v ?? "").trim().replace(/^["']|["']$/g, "").trim();
@@ -50,7 +53,7 @@ export function supabase(): SupabaseClient {
 
 // ---------- modo demonstração ----------
 
-const CHAVE_DEMO = "financas-demo-v3";
+const CHAVE_DEMO = "financas-demo-v4";
 
 function lerDemo(): Dados {
   try {
@@ -73,14 +76,26 @@ const CAMPO_DEMO: Record<Tabela, keyof Dados> = {
   lancamentos: "lancamentos",
   faturas_informadas: "faturasInformadas",
   compromissos: "compromissos",
+  negocios: "negocios",
 };
+
+/** Separa os lançamentos da casa dos lançamentos dos negócios. */
+function separar(d: Dados): Dados {
+  const todos = [...d.lancamentos, ...(d.lancamentosNegocios ?? [])];
+  return {
+    ...d,
+    negocios: d.negocios ?? [],
+    lancamentos: todos.filter((l) => !l.negocio_id),
+    lancamentosNegocios: todos.filter((l) => l.negocio_id),
+  };
+}
 
 // ---------- operações ----------
 
 export async function carregarTudo(): Promise<Dados> {
-  if (modoDemo) return lerDemo();
+  if (modoDemo) return separar(lerDemo());
   const s = supabase();
-  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias] = await Promise.all([
+  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias, negocios] = await Promise.all([
     s.from("membros").select("*"),
     s.from("contas").select("*").order("nome"),
     s.from("cartoes").select("*").order("nome"),
@@ -91,16 +106,19 @@ export async function carregarTudo(): Promise<Dados> {
     s.from("faturas_informadas").select("*"),
     s.from("compromissos").select("*").order("nome"),
     s.from("lancamentos").select("conta_destino_id").limit(1),
+    s.from("negocios").select("*").order("nome"),
   ]);
   // Se uma atualização do banco ainda não rodou, o app continua funcionando e avisa em Ajustes.
   const faltaAtualizar = compromissos.error
     ? "0002_limites_e_parcelas.sql"
     : transferencias.error
       ? "0003_transferencias.sql"
-      : null;
+      : negocios.error
+        ? "0004_negocios.sql"
+        : null;
   const erro = [membros, contas, cartoes, fontes, categorias, lancamentos, faturas].find((r) => r.error);
   if (erro?.error) throw new Error(erro.error.message);
-  return {
+  return separar({
     membros: membros.data as Membro[],
     contas: contas.data as Conta[],
     cartoes: cartoes.data as Cartao[],
@@ -114,7 +132,9 @@ export async function carregarTudo(): Promise<Dados> {
       valor: Number(c.valor),
       valor_total: c.valor_total === null ? null : Number(c.valor_total),
     })),
-  };
+    negocios: (negocios.data ?? []) as Negocio[],
+    lancamentosNegocios: [],
+  });
 }
 
 function dataLimite(): string {

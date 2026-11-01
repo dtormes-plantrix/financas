@@ -29,6 +29,7 @@ export const DEMO: Dados = {
     { id: "f-plantrix", nome: "Plantrix", valor_bruto: 9000, percentual_imposto: 6, descontos_fixos: 0, dia_previsto: null, conta_id: "c-mp", ativo: true },
     { id: "f-aluguel", nome: "Aluguel", valor_bruto: 8692.33, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: 20, conta_id: "c-sicredi", ativo: true },
     { id: "f-sady", nome: "Ajuda do Sady", valor_bruto: 10638, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: 5, conta_id: "c-sicredi", ativo: true },
+    { id: "f-espaco", nome: "Espaço Soletti", valor_bruto: null, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: null, conta_id: "c-sicredi", ativo: true },
     { id: "f-studio", nome: "Studio Pilates", valor_bruto: null, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: null, conta_id: "c-sicredi", ativo: true },
   ],
   categorias: [
@@ -41,8 +42,20 @@ export const DEMO: Dados = {
     { id: "l3", tipo: "saida", valor: 1200, data: dia(-2), descricao: "Geladeira", forma: "credito", conta_id: null, cartao_id: "k-mp", parcelas: 6, fonte_id: null, categoria_id: "cat-1", de_quem: "casa", criado_por: "demo-diego", criado_em: agora },
     { id: "l4", tipo: "saida", valor: 622.12, data: dia(-3), descricao: "Águas Cuiabá", forma: "pix", conta_id: "c-sicredi", cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: "cat-2", de_quem: "casa", criado_por: "demo-jo", criado_em: agora },
     { id: "l5", tipo: "transferencia", valor: 3000, data: dia(-4), descricao: "Para a conta da Jô", forma: "pix", conta_id: "c-mp", conta_destino_id: "c-sicredi", cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "diego", criado_por: "demo-diego", criado_em: agora },
+    { id: "n1", tipo: "entrada", valor: 350, data: dia(0), descricao: "Mensalidade Ana", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-studio", grupo: "aluno" },
+    { id: "n2", tipo: "entrada", valor: 350, data: dia(-1), descricao: "Mensalidade Carla", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-studio", grupo: "aluno" },
+    { id: "n3", tipo: "entrada", valor: 280, data: dia(-2), descricao: "Mensalidade Bia", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-studio", grupo: "aluno" },
+    { id: "n4", tipo: "saida", valor: 900, data: dia(-1), descricao: "Aluguel da sala", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-studio", grupo: "fixa" },
+    { id: "n5", tipo: "saida", valor: 120, data: dia(-2), descricao: "Material", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-studio", grupo: "variavel" },
+    { id: "n6", tipo: "entrada", valor: 2500, data: dia(-1), descricao: "Aluguel sala 1", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-espaco", grupo: "aluguel" },
+    { id: "n7", tipo: "saida", valor: 310, data: dia(-2), descricao: "Energia", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-espaco", grupo: "fixa" },
   ],
   faturasInformadas: [],
+  negocios: [
+    { id: "n-studio", nome: "Studio Pilates", fonte_id: "f-studio", ativo: true },
+    { id: "n-espaco", nome: "Espaço Soletti", fonte_id: "f-espaco", ativo: true },
+  ],
+  lancamentosNegocios: [],
   compromissos: [
     { id: "p-credito", nome: "Crédito contratado", valor: 1014.22, dia_vencimento: 18, mes_inicial: "2026-11", parcela_inicial: 7, total_parcelas: 18, valor_total: null, conta_id: null, ativo: true },
     { id: "p-joao", nome: "Devolver poupança do João", valor: 500, dia_vencimento: null, mes_inicial: "2026-11", parcela_inicial: 1, total_parcelas: null, valor_total: 8500, conta_id: null, ativo: true },

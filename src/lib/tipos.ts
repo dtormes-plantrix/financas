@@ -2,6 +2,16 @@ export type Dono = "diego" | "jo" | "casa";
 export type Forma = "pix" | "debito" | "dinheiro" | "credito";
 export type TipoLancamento = "entrada" | "saida" | "transferencia";
 
+/** Tipo de lançamento dentro de um negócio. */
+export type Grupo = "aluno" | "aluguel" | "fixa" | "variavel" | "outra";
+
+export type Negocio = {
+  id: string;
+  nome: string;
+  fonte_id: string | null; // renda da casa que recebe as sobras
+  ativo: boolean;
+};
+
 export type Membro = { user_id: string; nome: string; apelido: Dono };
 
 export type Conta = {
@@ -55,6 +65,8 @@ export type Lancamento = {
   categoria_id: string | null;
   de_quem: Dono;
   compromisso_id?: string | null;
+  negocio_id?: string | null; // lançamento do Studio ou do Espaço: fica fora das contas da casa
+  grupo?: Grupo | null;
   criado_por: string | null;
   criado_em: string;
 };

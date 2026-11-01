@@ -190,3 +190,31 @@ describe("transferências entre contas", () => {
     expect(r.aReceber).toBe(9000 - 540 - 1000);
   });
 });
+
+import { resumoNegocio } from "../src/lib/negocios";
+
+describe("negócios", () => {
+  const studio = { id: "st", nome: "Studio Pilates", fonte_id: "f-st", ativo: true };
+  const neg = [
+    lanc({ tipo: "entrada", valor: 3000, data: "2026-11-05", negocio_id: "st", grupo: "aluno" }),
+    lanc({ tipo: "saida", valor: 900, data: "2026-11-06", negocio_id: "st", grupo: "fixa" }),
+    lanc({ tipo: "saida", valor: 100, data: "2026-11-07", negocio_id: "st", grupo: "variavel" }),
+    lanc({ tipo: "entrada", valor: 500, data: "2026-10-05", negocio_id: "st", grupo: "aluno" }),
+  ];
+  const casa = [lanc({ tipo: "entrada", valor: 1500, data: "2026-11-20", fonte_id: "f-st" })];
+
+  it("separa entradas, fixas e variáveis e desconta o que foi para a casa", () => {
+    const r = resumoNegocio(studio, m(2026, 11), neg, casa);
+    expect(r.entradas).toBe(3000);
+    expect(r.fixas).toBe(900);
+    expect(r.variaveis).toBe(100);
+    expect(r.resultado).toBe(2000);
+    expect(r.passado).toBe(1500);
+    expect(r.caixa).toBe(500 + 2000 - 1500);
+  });
+
+  it("o que vai para a casa entra como renda da casa, e o resto do negócio não", () => {
+    const r = resumoDoMes(m(2026, 11), { lancamentos: casa, cartoes: [], fontes: [], faturasInformadas: [] });
+    expect(r.recebido).toBe(1500);
+  });
+});
