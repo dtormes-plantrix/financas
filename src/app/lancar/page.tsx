@@ -5,7 +5,8 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Pagina } from "@/components/Navegacao";
 import { useSessao } from "@/components/Sessao";
 import { SeletorCategoria } from "@/components/SeletorCategoria";
-import { excluir, salvar } from "@/lib/dados";
+import { combinar, doEndereco, type Leitura } from "@/lib/comprovante";
+import { excluir, modoDemo, salvar, supabase } from "@/lib/dados";
 import { nomeMes, parcelasDaCompra } from "@/lib/fatura";
 import { hoje, lerValor, NOME_DONO, NOME_FORMA, reais } from "@/lib/formato";
 import type { Dono, Forma, Lancamento, TipoLancamento } from "@/lib/tipos";
@@ -18,6 +19,38 @@ type Ultimo = { forma?: Forma; cartao_id?: string; conta_id?: string };
 function lerUltimo(apelido: string): Ultimo {
   try {
     return JSON.parse(localStorage.getItem(`${CHAVE_ULTIMO}-${apelido}`) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+/** Foto vira JPEG de até 1600 px (fica leve para enviar); PDF vai como está. */
+async function arquivoEmBase64(f: File): Promise<string> {
+  if (f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")) {
+    if (f.size > 3_000_000) throw new Error("PDF grande demais (máximo 3 MB).");
+    const b = new Uint8Array(await f.arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000));
+    return btoa(bin);
+  }
+  const img = await createImageBitmap(f);
+  const escala = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const tela = document.createElement("canvas");
+  tela.width = Math.round(img.width * escala);
+  tela.height = Math.round(img.height * escala);
+  tela.getContext("2d")!.drawImage(img, 0, 0, tela.width, tela.height);
+  return tela.toDataURL("image/jpeg", 0.85).split(",")[1];
+}
+
+const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+// Lembra qual cartão tem cada final (ex.: 7557 = Mercado Pago), aprendendo a cada comprovante salvo.
+const CHAVE_FINAIS = "financas-finais-cartao";
+// Finais já conhecidos (valem em qualquer celular): final -> nome do cartão
+const FINAIS_CONHECIDOS: Record<string, string> = { "7557": "Nubank" };
+function lerFinais(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(CHAVE_FINAIS) || "{}");
   } catch {
     return {};
   }
@@ -40,7 +73,8 @@ export default function PaginaLancar() {
 function Lancar() {
   const { dados, eu, recarregar } = useSessao();
   const router = useRouter();
-  const editarId = useSearchParams().get("id");
+  const parametros = useSearchParams();
+  const editarId = parametros.get("id");
   const editando = dados.lancamentos.find((l) => l.id === editarId);
 
   const cartoes = dados.cartoes.filter((c) => c.ativo);
@@ -63,7 +97,70 @@ function Lancar() {
   const [maisDetalhes, setMaisDetalhes] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [lendo, setLendo] = useState(false);
+  const [doComprovante, setDoComprovante] = useState(false);
+  const [finalLido, setFinalLido] = useState<string | null>(null);
   const campoValor = useRef<HTMLInputElement>(null);
+  const campoArquivo = useRef<HTMLInputElement>(null);
+
+  /** Preenche a tela com o que a IA leu do comprovante, para a pessoa conferir. */
+  function aplicarLeitura(l: Leitura) {
+    setTipo(l.tipo);
+    setValorTexto(String(l.valor).replace(".", ","));
+    setForma(l.forma);
+    setParcelas(l.parcelas);
+    setData(l.data ?? hoje());
+    setDescricao(l.descricao);
+    const peloFinal = l.final_cartao
+      ? cartoes.find((c) => c.id === lerFinais()[l.final_cartao!]) ?? combinar(cartoes, FINAIS_CONHECIDOS[l.final_cartao] ?? null)
+      : undefined;
+    if (l.forma === "credito") setCartaoId(peloFinal?.id ?? combinar(cartoes, l.instituicao)?.id ?? cartaoId);
+    else setContaId(combinar(contas, l.instituicao)?.id ?? contaId);
+    if (l.tipo === "transferencia") {
+      const destino = combinar(contas, l.instituicao_destino);
+      if (destino) setDestinoId(destino.id);
+    }
+    const daCasa = dados.categorias.filter((c) => !dados.grupos.find((g) => g.id === c.grupo_id)?.negocio_id);
+    const cat = l.categoria ? daCasa.find((c) => semAcento(c.nome) === semAcento(l.categoria!)) : undefined;
+    setCategoriaId(cat?.id ?? "");
+    setMaisDetalhes(true);
+    setDoComprovante(true);
+    setFinalLido(l.final_cartao);
+  }
+
+  async function aoEscolherArquivo(f: File | undefined) {
+    if (!f) return;
+    if (modoDemo) {
+      setAviso("No modo demonstração não dá para ler comprovantes.");
+      setTimeout(() => setAviso(null), 4000);
+      return;
+    }
+    setLendo(true);
+    setAviso(null);
+    try {
+      const arquivo = await arquivoEmBase64(f);
+      const { data: sessao } = await supabase().auth.getSession();
+      const r = await fetch("/api/comprovante", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${sessao.session?.access_token ?? ""}` },
+        body: JSON.stringify({
+          arquivo,
+          pessoas: dados.membros.map((m) => m.nome),
+          contas: [...contas.map((c) => `conta ${c.nome} (${NOME_DONO[c.dono]})`), ...cartoes.map((c) => `cartão ${c.nome} (${NOME_DONO[c.dono]})`)],
+          categorias: dados.categorias.filter((c) => !dados.grupos.find((g) => g.id === c.grupo_id)?.negocio_id).map((c) => c.nome),
+        }),
+      });
+      const corpo = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(corpo.erro ?? `erro ${r.status}`);
+      aplicarLeitura(corpo.leitura);
+    } catch (e) {
+      setAviso(`Não consegui ler: ${e instanceof Error ? e.message : e}`);
+      setTimeout(() => setAviso(null), 6000);
+    } finally {
+      setLendo(false);
+      if (campoArquivo.current) campoArquivo.current.value = "";
+    }
+  }
 
   // Começa com o que a pessoa usou da última vez, ou com o lançamento sendo editado.
   useEffect(() => {
@@ -87,6 +184,19 @@ function Lancar() {
     if (u.forma) setForma(u.forma);
     if (u.cartao_id && cartoes.some((c) => c.id === u.cartao_id)) setCartaoId(u.cartao_id);
     if (u.conta_id && contas.some((c) => c.id === u.conta_id)) setContaId(u.conta_id);
+    // Veio do Atalho do iPhone, com o comprovante já lido
+    const avisoAtalho = parametros.get("aviso");
+    if (avisoAtalho) {
+      setAviso(`Não consegui ler: ${avisoAtalho}`);
+      setTimeout(() => setAviso(null), 8000);
+      router.replace("/lancar");
+    }
+    const lida = doEndereco(parametros);
+    if (lida) {
+      aplicarLeitura(lida);
+      router.replace("/lancar");
+      return;
+    }
     campoValor.current?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editarId]);
@@ -135,6 +245,11 @@ function Lancar() {
     try {
       await salvar("lancamentos", registro);
       gravarUltimo(eu.apelido, { forma: formaFinal, cartao_id: cartaoId, conta_id: contaId });
+      if (doComprovante && finalLido && formaFinal === "credito" && cartaoId) {
+        try {
+          localStorage.setItem(CHAVE_FINAIS, JSON.stringify({ ...lerFinais(), [finalLido]: cartaoId }));
+        } catch {}
+      }
       await recarregar();
       if (editando) {
         router.push("/lancamentos");
@@ -146,6 +261,7 @@ function Lancar() {
       setParcelas(1);
       setFonteId(null);
       setCategoriaId("");
+      setDoComprovante(false);
       campoValor.current?.focus();
       setTimeout(() => setAviso(null), 4000);
     } catch (e) {
@@ -164,6 +280,33 @@ function Lancar() {
 
   return (
     <Pagina>
+      {!editando && (
+        <>
+          <input
+            ref={campoArquivo}
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            onChange={(e) => aoEscolherArquivo(e.target.files?.[0])}
+          />
+          <button
+            onClick={() => campoArquivo.current?.click()}
+            disabled={lendo}
+            className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-3 font-semibold ring-1 ring-tinta/15 active:scale-[0.99] disabled:opacity-60"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M12 17v-6M9 14l3-3 3 3" />
+            </svg>
+            {lendo ? "Lendo o comprovante…" : "Enviar comprovante"}
+          </button>
+        </>
+      )}
+      {doComprovante && (
+        <p className="mb-4 rounded-xl bg-amarelo-claro px-4 py-3 text-sm">
+          Preenchido pelo comprovante{finalLido ? ` (cartão final ${finalLido})` : ""}. Confira valor, conta e data antes de salvar.
+        </p>
+      )}
+
       <div className="mb-5 grid grid-cols-3 rounded-2xl bg-white p-1 ring-1 ring-tinta/10">
         {(["saida", "entrada", "transferencia"] as const).map((t) => (
           <button

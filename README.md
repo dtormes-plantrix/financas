@@ -21,7 +21,7 @@ Sistema de finanças da casa de Diego e Jô: ver em tempo real como está o mês
 npm install
 npm run dev    # abre em http://localhost:3000 (modo demonstração sem .env.local)
 npm test       # testes da regra da fatura e do painel
-npm run build  # gera o site em out/
+npm run build  # confere se o app compila (a Vercel faz isso sozinha)
 ```
 
 Tecnologia: Next.js (site estático que funciona como app), Supabase (dados e login), Tailwind (visual).
