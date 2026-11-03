@@ -45,6 +45,8 @@ const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, 
 
 // Lembra qual cartão tem cada final (ex.: 7557 = Mercado Pago), aprendendo a cada comprovante salvo.
 const CHAVE_FINAIS = "financas-finais-cartao";
+// Finais já conhecidos (valem em qualquer celular): final -> nome do cartão
+const FINAIS_CONHECIDOS: Record<string, string> = { "7557": "Nubank" };
 function lerFinais(): Record<string, string> {
   try {
     return JSON.parse(localStorage.getItem(CHAVE_FINAIS) || "{}");
@@ -108,7 +110,9 @@ function Lancar() {
     setParcelas(l.parcelas);
     setData(l.data ?? hoje());
     setDescricao(l.descricao);
-    const peloFinal = l.final_cartao ? cartoes.find((c) => c.id === lerFinais()[l.final_cartao!]) : undefined;
+    const peloFinal = l.final_cartao
+      ? cartoes.find((c) => c.id === lerFinais()[l.final_cartao!]) ?? combinar(cartoes, FINAIS_CONHECIDOS[l.final_cartao] ?? null)
+      : undefined;
     if (l.forma === "credito") setCartaoId(peloFinal?.id ?? combinar(cartoes, l.instituicao)?.id ?? cartaoId);
     else setContaId(combinar(contas, l.instituicao)?.id ?? contaId);
     if (l.tipo === "transferencia") {

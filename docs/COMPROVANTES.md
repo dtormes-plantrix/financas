@@ -50,6 +50,6 @@ O Atalho abre o app no **Safari**. Se você usa o app pelo ícone na tela de in�
 ## Bom saber
 
 - Fotos do iPhone (HEIC), prints, JPG, PNG e PDF funcionam.
-- O app aprende o final do cartão: na primeira compra com o cartão final 7557, escolha o cartão certo antes de salvar; das próximas vezes ele já vem marcado (vale para cada celular).
+- O final 7557 já vem como Nubank. Para outro cartão, escolha o certo antes de salvar na primeira vez; das próximas ele já vem marcado (vale para cada celular).
 - Pix entre você e a Jô vira **Entre contas**, não gasto.
 - Se a IA errar alguma coisa, é só corrigir na tela antes de salvar.
