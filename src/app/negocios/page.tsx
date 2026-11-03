@@ -5,10 +5,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Pagina } from "@/components/Navegacao";
 import { useSessao } from "@/components/Sessao";
+import { SeletorCategoria } from "@/components/SeletorCategoria";
 import { excluir, modoDemo, salvar } from "@/lib/dados";
 import { nomeMes, somarMeses, type Mes } from "@/lib/fatura";
 import { dataCurta, hoje, lerValor, NOME_FORMA, reais } from "@/lib/formato";
-import { NOME_GRUPO, repassesDoNegocio, resumoNegocio } from "@/lib/negocios";
+import { NOME_GRUPO, repassesDoNegocio, resumoNegocio, type ResumoNegocio } from "@/lib/negocios";
 import { noMes } from "@/lib/painel";
 import type { Forma, Grupo, Lancamento, Negocio } from "@/lib/tipos";
 
@@ -90,6 +91,7 @@ function Caixa({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
     .sort((a, b) => (a.data < b.data ? 1 : -1));
   const repasses = repassesDoNegocio(negocio, dados.lancamentos).filter((l) => noMes(l.data, mes));
   const [editando, setEditando] = useState<Lancamento | null>(null);
+  const [lancando, setLancando] = useState(false);
 
   const anterior = somarMeses(mes, -1);
   const fixasAnteriores = dados.lancamentosNegocios.filter(
@@ -110,14 +112,7 @@ function Caixa({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
 
   return (
     <>
-      <div className="cartao mb-3 p-0 text-sm">
-        <Linha rotulo="Entrou" valor={r.entradas} cor="text-verde" />
-        <Linha rotulo="Despesas fixas" valor={-r.fixas} />
-        <Linha rotulo="Despesas variáveis" valor={-r.variaveis} />
-        <Linha rotulo="Resultado do mês" valor={r.resultado} forte cor={r.resultado < 0 ? "text-vermelho" : "text-verde"} />
-        <Linha rotulo="Passado para a casa" valor={-r.passado} />
-        <Linha rotulo="Fica no caixa do negócio" valor={r.caixa} forte cor={r.caixa < 0 ? "text-vermelho" : ""} />
-      </div>
+      <Painel r={r} />
 
       <PassarParaCasa negocio={negocio} sugerido={Math.max(0, r.caixa)} />
 
@@ -127,7 +122,22 @@ function Caixa({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
         </button>
       )}
 
-      <Formulario key={editando?.id ?? "novo"} negocio={negocio} mes={mes} editando={editando} aoTerminar={() => setEditando(null)} />
+      {editando || lancando ? (
+        <Formulario
+          key={editando?.id ?? "novo"}
+          negocio={negocio}
+          mes={mes}
+          editando={editando}
+          aoTerminar={() => {
+            setEditando(null);
+            setLancando(false);
+          }}
+        />
+      ) : (
+        <button onClick={() => setLancando(true)} className="botao-secundario mb-3 w-full py-3 font-semibold">
+          + Lançar entrada ou saída
+        </button>
+      )}
 
       <div className="cartao divide-y divide-tinta/5 p-0 text-sm">
         {doMes.length === 0 && repasses.length === 0 && (
@@ -165,11 +175,41 @@ function semId(l: Lancamento) {
   return resto;
 }
 
-function Linha({ rotulo, valor, cor, forte }: { rotulo: string; valor: number; cor?: string; forte?: boolean }) {
+/** Painel simples do mês: entradas, saídas e saldo. */
+function Painel({ r }: { r: ResumoNegocio }) {
+  const saidas = r.fixas + r.variaveis;
+  const maior = Math.max(r.entradas, saidas, 1);
   return (
-    <div className={`flex items-center justify-between px-4 py-2 ${forte ? "border-t border-tinta/10 font-semibold" : ""}`}>
-      <span>{rotulo}</span>
-      <span className={`tabular-nums ${cor ?? ""}`}>{reais(valor)}</span>
+    <div className="cartao mb-3 space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-xl bg-verde-claro p-3">
+          <span className="block text-xs text-tinta/60">Entradas</span>
+          <span className="block text-lg font-semibold tabular-nums text-verde">{reais(r.entradas)}</span>
+          <Barra valor={r.entradas} maior={maior} cor="bg-verde" />
+        </div>
+        <div className="rounded-xl bg-vermelho-claro p-3">
+          <span className="block text-xs text-tinta/60">Saídas</span>
+          <span className="block text-lg font-semibold tabular-nums text-vermelho">{reais(saidas)}</span>
+          <Barra valor={saidas} maior={maior} cor="bg-vermelho" />
+        </div>
+      </div>
+      <div className="flex items-baseline justify-between">
+        <span className="font-medium">Saldo do mês</span>
+        <span className={`text-2xl font-bold tabular-nums ${r.resultado < 0 ? "text-vermelho" : "text-verde"}`}>{reais(r.resultado)}</span>
+      </div>
+      <div className="space-y-1 border-t border-tinta/10 pt-2 text-xs text-tinta/60">
+        <div className="flex justify-between"><span>Despesas fixas · variáveis</span><span className="tabular-nums">{reais(r.fixas)} · {reais(r.variaveis)}</span></div>
+        <div className="flex justify-between"><span>Passado para a casa</span><span className="tabular-nums">{reais(r.passado)}</span></div>
+        <div className="flex justify-between font-medium text-tinta"><span>Fica no caixa do negócio</span><span className={`tabular-nums ${r.caixa < 0 ? "text-vermelho" : ""}`}>{reais(r.caixa)}</span></div>
+      </div>
+    </div>
+  );
+}
+
+function Barra({ valor, maior, cor }: { valor: number; maior: number; cor: string }) {
+  return (
+    <div className="mt-2 h-1.5 rounded-full bg-white">
+      <div className={`h-1.5 rounded-full ${cor}`} style={{ width: `${Math.round((valor / maior) * 100)}%` }} />
     </div>
   );
 }
@@ -345,21 +385,13 @@ function Formulario({ negocio, mes, editando, aoTerminar }: { negocio: Negocio; 
         </div>
         <input className="campo py-2.5" placeholder={dica[grupo]} value={descricao} onChange={(e) => setDescricao(e.target.value)} aria-label="Descrição" />
       </div>
-      {gruposDoNegocio.length > 0 && (
-        <select
-          className="campo py-2.5"
-          aria-label="Categoria"
-          value={categoriasVisiveis.some((c) => c.id === categoriaId) ? categoriaId : ""}
-          onChange={(e) => setCategoriaId(e.target.value)}
-        >
-          <option value="">Sem categoria</option>
-          {gruposVisiveis.map((g) => (
-            <optgroup key={g.id} label={g.nome}>
-              {dados.categorias.filter((c) => c.grupo_id === g.id).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </optgroup>
-          ))}
-        </select>
-      )}
+      <SeletorCategoria
+        className="campo py-2.5"
+        valor={categoriasVisiveis.some((c) => c.id === categoriaId) ? categoriaId : ""}
+        aoMudar={setCategoriaId}
+        grupos={gruposVisiveis}
+        negocioId={negocio.id}
+      />
       <div className="flex flex-wrap items-center gap-2">
         {FORMAS.map((f) => (
           <button key={f} onClick={() => setForma(f)} className={`chip px-3 py-1.5 text-sm ${forma === f ? "chip-ativo" : ""}`}>{NOME_FORMA[f]}</button>

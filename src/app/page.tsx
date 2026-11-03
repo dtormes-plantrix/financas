@@ -19,6 +19,7 @@ import {
   type ResumoMes,
   type SituacaoConta,
 } from "@/lib/painel";
+import { sugerirRecorrentes } from "@/lib/recorrentes";
 
 function mesAtual(): Mes {
   const d = new Date();
@@ -58,6 +59,7 @@ export default function Painel() {
       </div>
 
       <Conta r={detalhe} />
+      <AvisoFixas />
       <Limites rAtual={rAtual} rSeguinte={rSeguinte} hoje={dia} />
     </Pagina>
   );
@@ -101,7 +103,7 @@ function Conta({ r }: { r: ResumoMes }) {
         {r.itensFatura.map((f) => (
           <Sub
             key={f.cartao.id}
-            rotulo={`${f.cartao.nome} · dia ${f.cartao.dia_vencimento}${f.informado === null ? " · só o lançado aqui" : ""}`}
+            rotulo={`${f.cartao.nome} · dia ${f.cartao.dia_vencimento}${f.informado === null ? " · só o lançado aqui" : ""}${f.fixas.length ? ` · com ${f.fixas.length} ${f.fixas.length > 1 ? "contas fixas" : "conta fixa"}` : ""}`}
             valor={-f.valor}
           />
         ))}
@@ -115,7 +117,7 @@ function Conta({ r }: { r: ResumoMes }) {
       {r.itensCompromisso.length > 0 && (
         <div className="border-t border-tinta/5 px-3 py-1.5">
           <div className="flex items-center justify-between">
-            <span>Parcelas</span>
+            <span>Parcelas e contas fixas</span>
             <span className="tabular-nums">{reais(-r.parcelas)}</span>
           </div>
           {r.itensCompromisso.map((c) => <ParcelaMensal key={c.compromisso.id} item={c} mes={r.mes} />)}
@@ -127,6 +129,18 @@ function Conta({ r }: { r: ResumoMes }) {
         <span className={`tabular-nums ${r.sobra < 0 ? "text-vermelho" : "text-verde"}`}>{reais(r.sobra)}</span>
       </div>
     </div>
+  );
+}
+
+/** Lembra de confirmar as contas que se repetem, para o mês que vem sair certo. */
+function AvisoFixas() {
+  const { dados } = useSessao();
+  const n = sugerirRecorrentes(dados.lancamentos, dados.compromissos, hoje()).length;
+  if (n === 0) return null;
+  return (
+    <Link href="/cadastros#fixas" className="mb-3 block rounded-2xl bg-amarelo-claro px-3 py-2 text-sm">
+      {n} {n > 1 ? "contas parecem se repetir" : "conta parece se repetir"} todo mês. <span className="underline">Confirmar</span>
+    </Link>
   );
 }
 

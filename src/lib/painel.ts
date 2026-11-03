@@ -5,13 +5,15 @@
 //         − faturas de cartão que vencem no mês
 //         − parcelas mensais (empréstimo, dívida) que ainda não foram pagas
 
-import { chaveMes, lerData, parcelasDaCompra, somarMeses, type Mes } from "./fatura";
+import { chaveMes, diasNoMes, faturaDaCompra, lerData, parcelasDaCompra, somarMeses, type Mes } from "./fatura";
+import { pagaConta } from "./recorrentes";
 import type { Cartao, Compromisso, Conta, FaturaInformada, FonteRenda, Lancamento } from "./tipos";
 
 export type ItemFatura = {
   cartao: Cartao;
   calculado: number; // soma das compras registradas no sistema
   informado: number | null; // valor digitado a partir da fatura do banco
+  fixas: { nome: string; valor: number }[]; // contas fixas do cartão que ainda não apareceram na fatura
   valor: number; // o que vale para a conta
 };
 
@@ -69,7 +71,8 @@ export function compromissoNoMes(
   if (!c.ativo) return null;
   const inicio = lerMes(c.mes_inicial);
   if (indice(mes) < indice(inicio)) return null;
-  const pagamentos = lancamentos.filter((l) => l.compromisso_id === c.id && l.tipo === "saida");
+  // pagamento ligado pelo botão "Paguei", ou lançamento importado com o mesmo texto do extrato
+  const pagamentos = lancamentos.filter((l) => pagaConta(l, c));
   const pagoEm = (m: Mes) => r2(pagamentos.filter((l) => noMes(l.data, m)).reduce((s, l) => s + Number(l.valor), 0));
   const pago = pagoEm(mes);
 
@@ -124,6 +127,29 @@ export function faturasCalculadas(lancamentos: Lancamento[], cartoes: Cartao[], 
   return porCartao;
 }
 
+/**
+ * Contas fixas no cartão que caem na fatura que vence no mês e ainda não
+ * apareceram nas compras lançadas (a cobrança do mês ainda não veio).
+ */
+export function fixasNaFatura(cartao: Cartao, mes: Mes, compromissos: Compromisso[], lancamentos: Lancamento[]) {
+  const itens: { nome: string; valor: number }[] = [];
+  for (const c of compromissos) {
+    if (!c.ativo || c.cartao_id !== cartao.id) continue;
+    const inicio = lerMes(c.mes_inicial);
+    const chave = chaveMes(mes);
+    let previstas = 0; // cobranças esperadas nesta fatura (normalmente uma)
+    for (let k = somarMeses(mes, -2); indice(k) <= indice(mes); k = somarMeses(k, 1)) {
+      if (indice(k) < indice(inicio)) continue;
+      const dia = Math.min(c.dia_vencimento || 1, diasNoMes(k));
+      const data = `${chaveMes(k)}-${String(dia).padStart(2, "0")}`;
+      if (chaveMes(faturaDaCompra(data, cartao)) === chave) previstas++;
+    }
+    const vieram = lancamentos.filter((l) => pagaConta(l, c) && chaveMes(faturaDaCompra(l.data, cartao)) === chave).length;
+    for (let i = vieram; i < previstas; i++) itens.push({ nome: c.nome, valor: Number(c.valor) });
+  }
+  return itens;
+}
+
 export function resumoDoMes(
   mes: Mes,
   dados: {
@@ -168,12 +194,15 @@ export function resumoDoMes(
       const calculado = calculadas.get(cartao.id) || 0;
       const inf = faturasInformadas.find((f) => f.cartao_id === cartao.id && f.mes === chave);
       const informado = inf ? Number(inf.valor) : null;
-      // O valor informado vem da fatura do banco e já inclui o que foi registrado aqui.
-      return { cartao, calculado, informado, valor: informado ?? calculado };
+      // O valor informado vem da fatura do banco e já inclui tudo, até as contas fixas.
+      const fixas = informado === null ? fixasNaFatura(cartao, mes, compromissos, lancamentos) : [];
+      const valor = informado ?? r2(calculado + fixas.reduce((s, f) => s + f.valor, 0));
+      return { cartao, calculado, informado, fixas, valor };
     });
   const faturas = r2(itensFatura.reduce((s, f) => s + f.valor, 0));
 
   const itensCompromisso = compromissos
+    .filter((c) => !c.cartao_id)
     .map((c) => compromissoNoMes(c, mes, lancamentos, hoje))
     .filter((x): x is ItemCompromisso => x !== null);
   const parcelas = r2(itensCompromisso.reduce((s, c) => s + c.falta, 0));

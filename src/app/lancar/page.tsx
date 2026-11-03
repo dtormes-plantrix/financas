@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Pagina } from "@/components/Navegacao";
 import { useSessao } from "@/components/Sessao";
+import { SeletorCategoria } from "@/components/SeletorCategoria";
 import { combinar, doEndereco, type Leitura } from "@/lib/comprovante";
 import { excluir, modoDemo, salvar, supabase } from "@/lib/dados";
 import { nomeMes, parcelasDaCompra } from "@/lib/fatura";
@@ -436,16 +437,7 @@ function Lancar() {
           </div>
           <div>
             <label className="rotulo" htmlFor="categoria">Categoria (opcional)</label>
-            <select id="categoria" className="campo" value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}>
-              <option value="">Sem categoria</option>
-              {dados.grupos.length > 0
-                ? dados.grupos.filter((g) => !g.negocio_id).map((g) => (
-                    <optgroup key={g.id} label={g.nome}>
-                      {dados.categorias.filter((c) => c.grupo_id === g.id).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                    </optgroup>
-                  ))
-                : dados.categorias.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
+            <SeletorCategoria id="categoria" valor={categoriaId} aoMudar={setCategoriaId} grupos={dados.grupos.filter((g) => !g.negocio_id)} />
           </div>
           <div>
             <label className="rotulo" htmlFor="data">Data</label>

@@ -90,5 +90,7 @@ export type Compromisso = {
   total_parcelas: number | null; // null = repete todo mês
   valor_total: number | null; // dívida: termina quando os pagamentos somarem este valor
   conta_id: string | null;
-  ativo: boolean;
+  cartao_id?: string | null; // conta fixa no cartão: entra na fatura prevista
+  busca?: string | null; // texto do extrato que identifica o pagamento (ex.: "NETFLIX COM")
+  ativo: boolean; // false = sugestão que a pessoa disse que não é conta fixa
 };

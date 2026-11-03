@@ -100,7 +100,7 @@ function separar(d: Dados): Dados {
 export async function carregarTudo(): Promise<Dados> {
   if (modoDemo) return separar(lerDemo());
   const s = supabase();
-  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias, negocios, grupos, gruposNegocio] = await Promise.all([
+  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias, negocios, grupos, gruposNegocio, recorrentes] = await Promise.all([
     s.from("membros").select("*"),
     s.from("contas").select("*").order("nome"),
     s.from("cartoes").select("*").order("nome"),
@@ -114,6 +114,7 @@ export async function carregarTudo(): Promise<Dados> {
     s.from("negocios").select("*").order("nome"),
     s.from("grupos").select("*").order("ordem").order("nome"),
     s.from("grupos").select("negocio_id").limit(1),
+    s.from("compromissos").select("busca").limit(1),
   ]);
   // Se uma atualização do banco ainda não rodou, o app continua funcionando e avisa em Ajustes.
   const faltaAtualizar = compromissos.error
@@ -126,7 +127,9 @@ export async function carregarTudo(): Promise<Dados> {
           ? "0005_grupos_e_categorias.sql"
           : gruposNegocio.error
             ? "0006_categorias_dos_negocios.sql"
-            : null;
+            : recorrentes.error
+              ? "0007_contas_que_se_repetem.sql"
+              : null;
   const erro = [membros, contas, cartoes, fontes, categorias, lancamentos, faturas].find((r) => r.error);
   if (erro?.error) throw new Error(erro.error.message);
   return separar({
@@ -196,6 +199,20 @@ export async function salvar<T extends Registro>(tabela: Tabela, registro: T): P
     ? await s.from(tabela).update(campos).eq("id", id)
     : await s.from(tabela).insert(campos);
   if (error) throw new Error(error.message);
+}
+
+/** Cria um registro novo e devolve o id dele (para já selecionar na tela). */
+export async function criar<T extends Registro>(tabela: Tabela, registro: T): Promise<string> {
+  const id = crypto.randomUUID();
+  if (modoDemo) {
+    const d = lerDemo();
+    (d[CAMPO_DEMO[tabela]] as unknown as Registro[]).unshift({ ...registro, id, criado_em: new Date().toISOString() });
+    gravarDemo(d);
+    return id;
+  }
+  const { error } = await supabase().from(tabela).insert({ ...registro, id });
+  if (error) throw new Error(error.message);
+  return id;
 }
 
 export async function excluir(tabela: Tabela, id: string): Promise<void> {
