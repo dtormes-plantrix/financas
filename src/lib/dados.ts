@@ -198,6 +198,20 @@ export async function salvar<T extends Registro>(tabela: Tabela, registro: T): P
   if (error) throw new Error(error.message);
 }
 
+/** Cria um registro novo e devolve o id dele (para já selecionar na tela). */
+export async function criar<T extends Registro>(tabela: Tabela, registro: T): Promise<string> {
+  const id = crypto.randomUUID();
+  if (modoDemo) {
+    const d = lerDemo();
+    (d[CAMPO_DEMO[tabela]] as unknown as Registro[]).unshift({ ...registro, id, criado_em: new Date().toISOString() });
+    gravarDemo(d);
+    return id;
+  }
+  const { error } = await supabase().from(tabela).insert({ ...registro, id });
+  if (error) throw new Error(error.message);
+  return id;
+}
+
 export async function excluir(tabela: Tabela, id: string): Promise<void> {
   if (modoDemo) {
     const d = lerDemo();

@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pagina } from "@/components/Navegacao";
 import { useSessao } from "@/components/Sessao";
+import { SeletorCategoria } from "@/components/SeletorCategoria";
 import { excluir, modoDemo, salvar } from "@/lib/dados";
 import { nomeMes, somarMeses, type Mes } from "@/lib/fatura";
 import { dataCurta, hoje, lerValor, NOME_FORMA, reais } from "@/lib/formato";
@@ -345,21 +346,13 @@ function Formulario({ negocio, mes, editando, aoTerminar }: { negocio: Negocio; 
         </div>
         <input className="campo py-2.5" placeholder={dica[grupo]} value={descricao} onChange={(e) => setDescricao(e.target.value)} aria-label="Descrição" />
       </div>
-      {gruposDoNegocio.length > 0 && (
-        <select
-          className="campo py-2.5"
-          aria-label="Categoria"
-          value={categoriasVisiveis.some((c) => c.id === categoriaId) ? categoriaId : ""}
-          onChange={(e) => setCategoriaId(e.target.value)}
-        >
-          <option value="">Sem categoria</option>
-          {gruposVisiveis.map((g) => (
-            <optgroup key={g.id} label={g.nome}>
-              {dados.categorias.filter((c) => c.grupo_id === g.id).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </optgroup>
-          ))}
-        </select>
-      )}
+      <SeletorCategoria
+        className="campo py-2.5"
+        valor={categoriasVisiveis.some((c) => c.id === categoriaId) ? categoriaId : ""}
+        aoMudar={setCategoriaId}
+        grupos={gruposVisiveis}
+        negocioId={negocio.id}
+      />
       <div className="flex flex-wrap items-center gap-2">
         {FORMAS.map((f) => (
           <button key={f} onClick={() => setForma(f)} className={`chip px-3 py-1.5 text-sm ${forma === f ? "chip-ativo" : ""}`}>{NOME_FORMA[f]}</button>
