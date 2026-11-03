@@ -48,7 +48,9 @@ export default function Ajustes() {
               ? " Sem isso, as transferências entre contas e os custos fixos das rendas não salvam."
               : dados.faltaAtualizar.startsWith("0004")
                 ? " Sem isso, as seções do Studio Pilates e do Espaço Soletti não aparecem."
-                : " Sem isso, os grupos de categorias não aparecem."}
+                : dados.faltaAtualizar.startsWith("0005")
+                  ? " Sem isso, os grupos de categorias não aparecem."
+                  : " Sem isso, as categorias do Studio e do Espaço não aparecem."}
         </div>
       )}
 
@@ -70,10 +72,17 @@ export default function Ajustes() {
       </Secao>
 
       {dados.grupos.length > 0 && (
-        <Secao titulo="Grupos e categorias" ajuda="Toque num grupo para renomear, criar ou apagar categorias. Apagar não apaga lançamentos, eles só ficam sem categoria.">
+        <Secao titulo="Grupos e categorias da casa" ajuda="Toque num grupo para renomear, criar ou apagar categorias. Apagar não apaga lançamentos, eles só ficam sem categoria.">
           <EditorCategorias />
         </Secao>
       )}
+
+      {dados.grupos.some((g) => g.negocio_id) &&
+        dados.negocios.filter((n) => n.ativo).map((n) => (
+          <Secao key={n.id} titulo={`Categorias do ${n.nome}`} ajuda="Só aparecem na seção Negócios, separadas das da casa.">
+            <EditorCategorias negocioId={n.id} />
+          </Secao>
+        ))}
 
       {!modoDemo && (
         <button className="botao-secundario w-full" onClick={() => supabase().auth.signOut()}>

@@ -26,11 +26,14 @@ alter table lancamentos add constraint lancamentos_categoria_id_fkey
   foreign key (categoria_id) references categorias (id) on delete set null;
 
 -- Grupos sugeridos
-insert into grupos (nome, ordem) values
+insert into grupos (nome, ordem)
+select g.nome, g.ordem
+from (values
   ('Casa', 1), ('Filhos', 2), ('Estilo de vida', 3), ('Saúde', 4), ('Transporte', 5),
   ('Educação e trabalho', 6), ('Igreja e doações', 7), ('Banco e dívidas', 8),
   ('Investimentos', 9), ('Outros', 10)
-on conflict (nome) do nothing;
+) as g (nome, ordem)
+where not exists (select 1 from grupos x where x.nome = g.nome);
 
 -- As categorias que já existiam entram nos grupos (algumas com nome mais claro).
 update categorias set nome = 'Contas da casa' where nome = 'Contas fixas' and grupo_id is null;

@@ -66,5 +66,6 @@ Quando o app ganhar uma função nova que precisa de mais espaço no banco, vai 
 | `0003_transferencias.sql` | Transferências entre contas, custos fixos das rendas (contabilidade, INSS), crédito vencendo dia 18 |
 | `0004_negocios.sql` | Caixas separados do Studio Pilates e do Espaço Soletti |
 | `0005_grupos_e_categorias.sql` | Grupos de categorias, que podem ser criados, editados e apagados em Ajustes |
+| `0006_categorias_dos_negocios.sql` | Grupos e categorias próprios do Studio Pilates e do Espaço Soletti |
 
 Enquanto uma atualização não roda, o app avisa em **Ajustes**.

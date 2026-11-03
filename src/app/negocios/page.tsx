@@ -145,9 +145,9 @@ function Caixa({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
         {doMes.map((l) => (
           <button key={l.id} onClick={() => setEditando(l)} className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left active:bg-tinta/5">
             <span className="min-w-0">
-              <span className="block truncate">{l.descricao || NOME_GRUPO[l.grupo ?? "outra"]}</span>
+              <span className="block truncate">{l.descricao || dados.categorias.find((c) => c.id === l.categoria_id)?.nome || NOME_GRUPO[l.grupo ?? "outra"]}</span>
               <span className="block text-xs text-tinta/50">
-                {dataCurta(l.data)} · {NOME_GRUPO[l.grupo ?? (l.tipo === "entrada" ? "outra" : "variavel")]} · {NOME_FORMA[l.forma]}
+                {dataCurta(l.data)} · {dados.categorias.find((c) => c.id === l.categoria_id)?.nome ?? NOME_GRUPO[l.grupo ?? (l.tipo === "entrada" ? "outra" : "variavel")]} · {NOME_FORMA[l.forma]}
               </span>
             </span>
             <span className={`shrink-0 tabular-nums ${l.tipo === "entrada" ? "text-verde" : ""}`}>
@@ -248,7 +248,7 @@ function PassarParaCasa({ negocio, sugerido }: { negocio: Negocio; sugerido: num
 
 /** Lançar ou editar uma entrada ou saída do negócio. */
 function Formulario({ negocio, mes, editando, aoTerminar }: { negocio: Negocio; mes: Mes; editando: Lancamento | null; aoTerminar: () => void }) {
-  const { recarregar } = useSessao();
+  const { dados, recarregar } = useSessao();
   const ehEspaco = /espa/i.test(negocio.nome);
   const gruposEntrada: Grupo[] = ehEspaco ? ["aluguel", "outra"] : ["aluno", "outra"];
   const grupos: Grupo[] = [...gruposEntrada, "fixa", "variavel"];
@@ -263,6 +263,14 @@ function Formulario({ negocio, mes, editando, aoTerminar }: { negocio: Negocio; 
   const [aviso, setAviso] = useState<string | null>(null);
   const campo = useRef<HTMLInputElement>(null);
   const entrada = gruposEntrada.includes(grupo);
+  const [categoriaId, setCategoriaId] = useState(editando?.categoria_id ?? "");
+
+  // Grupos de categorias do negócio. Mostra primeiro os que combinam com o tipo escolhido.
+  const gruposDoNegocio = dados.grupos.filter((g) => g.negocio_id === negocio.id);
+  const padrao = entrada ? /entrada/i : grupo === "fixa" ? /fix/i : /vari/i;
+  const combinam = gruposDoNegocio.filter((g) => padrao.test(g.nome));
+  const gruposVisiveis = combinam.length ? combinam : gruposDoNegocio;
+  const categoriasVisiveis = dados.categorias.filter((c) => gruposVisiveis.some((g) => g.id === c.grupo_id));
 
   const dica: Record<Grupo, string> = {
     aluno: "Nome do aluno",
@@ -291,7 +299,7 @@ function Formulario({ negocio, mes, editando, aoTerminar }: { negocio: Negocio; 
         cartao_id: null,
         parcelas: 1,
         fonte_id: null,
-        categoria_id: null,
+        categoria_id: categoriasVisiveis.some((c) => c.id === categoriaId) ? categoriaId : null,
         de_quem: "jo",
         negocio_id: negocio.id,
         grupo,
@@ -337,6 +345,21 @@ function Formulario({ negocio, mes, editando, aoTerminar }: { negocio: Negocio; 
         </div>
         <input className="campo py-2.5" placeholder={dica[grupo]} value={descricao} onChange={(e) => setDescricao(e.target.value)} aria-label="Descrição" />
       </div>
+      {gruposDoNegocio.length > 0 && (
+        <select
+          className="campo py-2.5"
+          aria-label="Categoria"
+          value={categoriasVisiveis.some((c) => c.id === categoriaId) ? categoriaId : ""}
+          onChange={(e) => setCategoriaId(e.target.value)}
+        >
+          <option value="">Sem categoria</option>
+          {gruposVisiveis.map((g) => (
+            <optgroup key={g.id} label={g.nome}>
+              {dados.categorias.filter((c) => c.grupo_id === g.id).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </optgroup>
+          ))}
+        </select>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         {FORMAS.map((f) => (
           <button key={f} onClick={() => setForma(f)} className={`chip px-3 py-1.5 text-sm ${forma === f ? "chip-ativo" : ""}`}>{NOME_FORMA[f]}</button>

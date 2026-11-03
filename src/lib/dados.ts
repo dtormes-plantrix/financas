@@ -54,7 +54,7 @@ export function supabase(): SupabaseClient {
 
 // ---------- modo demonstração ----------
 
-const CHAVE_DEMO = "financas-demo-v5";
+const CHAVE_DEMO = "financas-demo-v6";
 
 function lerDemo(): Dados {
   try {
@@ -100,7 +100,7 @@ function separar(d: Dados): Dados {
 export async function carregarTudo(): Promise<Dados> {
   if (modoDemo) return separar(lerDemo());
   const s = supabase();
-  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias, negocios, grupos] = await Promise.all([
+  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias, negocios, grupos, gruposNegocio] = await Promise.all([
     s.from("membros").select("*"),
     s.from("contas").select("*").order("nome"),
     s.from("cartoes").select("*").order("nome"),
@@ -113,6 +113,7 @@ export async function carregarTudo(): Promise<Dados> {
     s.from("lancamentos").select("conta_destino_id").limit(1),
     s.from("negocios").select("*").order("nome"),
     s.from("grupos").select("*").order("ordem").order("nome"),
+    s.from("grupos").select("negocio_id").limit(1),
   ]);
   // Se uma atualização do banco ainda não rodou, o app continua funcionando e avisa em Ajustes.
   const faltaAtualizar = compromissos.error
@@ -123,7 +124,9 @@ export async function carregarTudo(): Promise<Dados> {
         ? "0004_negocios.sql"
         : grupos.error
           ? "0005_grupos_e_categorias.sql"
-          : null;
+          : gruposNegocio.error
+            ? "0006_categorias_dos_negocios.sql"
+            : null;
   const erro = [membros, contas, cartoes, fontes, categorias, lancamentos, faturas].find((r) => r.error);
   if (erro?.error) throw new Error(erro.error.message);
   return separar({

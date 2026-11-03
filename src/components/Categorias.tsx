@@ -7,10 +7,11 @@ import { useSessao } from "@/components/Sessao";
 import { excluir, salvar } from "@/lib/dados";
 import type { Categoria, GrupoCategoria } from "@/lib/tipos";
 
-export function EditorCategorias() {
+export function EditorCategorias({ negocioId = null }: { negocioId?: string | null }) {
   const { dados, recarregar } = useSessao();
   const [novoGrupo, setNovoGrupo] = useState("");
   const [erro, setErro] = useState<string | null>(null);
+  const grupos = dados.grupos.filter((g) => (g.negocio_id ?? null) === negocioId);
 
   async function rodar(fn: () => Promise<void>) {
     setErro(null);
@@ -26,18 +27,18 @@ export function EditorCategorias() {
   async function criarGrupo() {
     const nome = novoGrupo.trim();
     if (!nome) return;
-    await rodar(() => salvar("grupos", { nome, ordem: dados.grupos.length + 1 }));
+    await rodar(() => salvar("grupos", { nome, ordem: grupos.length + 1, ...(negocioId ? { negocio_id: negocioId } : {}) }));
     setNovoGrupo("");
   }
 
   return (
     <div className="space-y-2">
       {erro && <p className="rounded-xl bg-vermelho-claro px-3 py-2 text-sm text-vermelho">{erro}</p>}
-      {dados.grupos.map((g) => (
+      {grupos.map((g) => (
         <Grupo key={g.id} grupo={g} categorias={dados.categorias.filter((c) => c.grupo_id === g.id)} rodar={rodar} />
       ))}
       <div className="flex gap-2">
-        <input className="campo py-2.5" placeholder="Novo grupo" value={novoGrupo} onChange={(e) => setNovoGrupo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && criarGrupo()} aria-label="Nome do novo grupo" />
+        <input className="campo py-2.5" placeholder="Novo grupo" value={novoGrupo} onChange={(e) => setNovoGrupo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && criarGrupo()} aria-label={negocioId ? "Nome do novo grupo do negócio" : "Nome do novo grupo"} />
         <button className="botao-secundario shrink-0 py-2.5" onClick={criarGrupo}>Criar</button>
       </div>
     </div>

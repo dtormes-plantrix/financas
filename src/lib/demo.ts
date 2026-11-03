@@ -25,6 +25,16 @@ const GRUPOS_PADRAO: [string, string[]][] = [
   ["Outros", ["Outros"]],
 ];
 
+/** Grupos sugeridos para os negócios (os mesmos da atualização 0006). */
+const GRUPOS_NEGOCIOS: [string, string, string[]][] = [
+  ["n-studio", "Entradas", ["Mensalidades", "Aulas avulsas", "Pacotes e planos"]],
+  ["n-studio", "Despesas fixas", ["Aluguel da sala", "Energia, água e internet", "Instrutoras", "Contador e impostos", "Sistemas e assinaturas"]],
+  ["n-studio", "Despesas variáveis", ["Equipamentos", "Material e limpeza", "Manutenção", "Divulgação", "Cursos"]],
+  ["n-espaco", "Entradas", ["Aluguéis", "Locação por hora ou evento"]],
+  ["n-espaco", "Despesas fixas", ["Energia, água e internet", "IPTU", "Condomínio", "Contador e impostos"]],
+  ["n-espaco", "Despesas variáveis", ["Manutenção", "Reformas", "Limpeza", "Divulgação"]],
+];
+
 export const DEMO: Dados = {
   membros: [
     { user_id: "demo-diego", nome: "Diego", apelido: "diego" },
@@ -46,10 +56,18 @@ export const DEMO: Dados = {
     { id: "f-espaco", nome: "Espaço Soletti", valor_bruto: null, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: null, conta_id: "c-sicredi", ativo: true },
     { id: "f-studio", nome: "Studio Pilates", valor_bruto: null, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: null, conta_id: "c-sicredi", ativo: true },
   ],
-  grupos: GRUPOS_PADRAO.map(([nome], i) => ({ id: `g-${i}`, nome, ordem: i + 1 })),
-  categorias: GRUPOS_PADRAO.flatMap(([, cats], i) =>
-    cats.map((nome, j) => ({ id: `cat-${i}-${j}`, nome, grupo_id: `g-${i}`, ordem: j + 1 })),
-  ),
+  grupos: [
+    ...GRUPOS_PADRAO.map(([nome], i) => ({ id: `g-${i}`, nome, ordem: i + 1, negocio_id: null })),
+    ...GRUPOS_NEGOCIOS.map(([negocio, nome], i) => ({ id: `gn-${i}`, nome, ordem: i + 1, negocio_id: negocio })),
+  ],
+  categorias: [
+    ...GRUPOS_PADRAO.flatMap(([, cats], i) =>
+      cats.map((nome, j) => ({ id: `cat-${i}-${j}`, nome, grupo_id: `g-${i}`, ordem: j + 1 })),
+    ),
+    ...GRUPOS_NEGOCIOS.flatMap(([, , cats], i) =>
+      cats.map((nome, j) => ({ id: `catn-${i}-${j}`, nome, grupo_id: `gn-${i}`, ordem: j + 1 })),
+    ),
+  ],
   lancamentos: [
     { id: "l1", tipo: "saida", valor: 184.18, data: dia(0), descricao: "Comper", forma: "credito", conta_id: null, cartao_id: "k-nubank", parcelas: 1, fonte_id: null, categoria_id: "cat-0-0", de_quem: "casa", criado_por: "demo-jo", criado_em: agora },
     { id: "l2", tipo: "saida", valor: 48, data: dia(-1), descricao: "Feira", forma: "pix", conta_id: "c-sicredi", cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: "cat-0-0", de_quem: "jo", criado_por: "demo-jo", criado_em: agora },
