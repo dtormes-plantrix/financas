@@ -11,6 +11,20 @@ function dia(deslocamento: number): string {
 
 const agora = new Date().toISOString();
 
+/** Grupos e categorias sugeridos (os mesmos da atualização 0005 do banco). */
+const GRUPOS_PADRAO: [string, string[]][] = [
+  ["Casa", ["Mercado", "Contas da casa", "Condomínio", "Manutenção", "Assinaturas", "Eletro e móveis"]],
+  ["Filhos", ["Escola", "Esportes", "Mesada"]],
+  ["Estilo de vida", ["Restaurante e delivery", "Compras", "Roupas", "Cuidados pessoais", "Lazer", "Viagens", "Presentes"]],
+  ["Saúde", ["Farmácia", "Consultas e exames", "Seguros"]],
+  ["Transporte", ["Combustível", "Pedágio e estacionamento", "Manutenção do carro", "IPVA e Detran", "Uber e táxi"]],
+  ["Educação e trabalho", ["Cursos e MBA", "Ferramentas e softwares"]],
+  ["Igreja e doações", ["Dízimo", "Ofertas", "Doações e associações"]],
+  ["Banco e dívidas", ["Juros e IOF", "Tarifas", "Empréstimos"]],
+  ["Investimentos", ["Previdência", "Poupança"]],
+  ["Outros", ["Outros"]],
+];
+
 export const DEMO: Dados = {
   membros: [
     { user_id: "demo-diego", nome: "Diego", apelido: "diego" },
@@ -32,15 +46,15 @@ export const DEMO: Dados = {
     { id: "f-espaco", nome: "Espaço Soletti", valor_bruto: null, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: null, conta_id: "c-sicredi", ativo: true },
     { id: "f-studio", nome: "Studio Pilates", valor_bruto: null, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: null, conta_id: "c-sicredi", ativo: true },
   ],
-  categorias: [
-    "Mercado", "Casa", "Contas fixas", "Saúde", "Educação", "Transporte",
-    "Restaurante e delivery", "Lazer", "Roupas", "Assinaturas", "Outros",
-  ].map((nome, i) => ({ id: `cat-${i}`, nome })),
+  grupos: GRUPOS_PADRAO.map(([nome], i) => ({ id: `g-${i}`, nome, ordem: i + 1 })),
+  categorias: GRUPOS_PADRAO.flatMap(([, cats], i) =>
+    cats.map((nome, j) => ({ id: `cat-${i}-${j}`, nome, grupo_id: `g-${i}`, ordem: j + 1 })),
+  ),
   lancamentos: [
-    { id: "l1", tipo: "saida", valor: 184.18, data: dia(0), descricao: "Comper", forma: "credito", conta_id: null, cartao_id: "k-nubank", parcelas: 1, fonte_id: null, categoria_id: "cat-0", de_quem: "casa", criado_por: "demo-jo", criado_em: agora },
-    { id: "l2", tipo: "saida", valor: 48, data: dia(-1), descricao: "Feira", forma: "pix", conta_id: "c-sicredi", cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: "cat-0", de_quem: "jo", criado_por: "demo-jo", criado_em: agora },
-    { id: "l3", tipo: "saida", valor: 1200, data: dia(-2), descricao: "Geladeira", forma: "credito", conta_id: null, cartao_id: "k-mp", parcelas: 6, fonte_id: null, categoria_id: "cat-1", de_quem: "casa", criado_por: "demo-diego", criado_em: agora },
-    { id: "l4", tipo: "saida", valor: 622.12, data: dia(-3), descricao: "Águas Cuiabá", forma: "pix", conta_id: "c-sicredi", cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: "cat-2", de_quem: "casa", criado_por: "demo-jo", criado_em: agora },
+    { id: "l1", tipo: "saida", valor: 184.18, data: dia(0), descricao: "Comper", forma: "credito", conta_id: null, cartao_id: "k-nubank", parcelas: 1, fonte_id: null, categoria_id: "cat-0-0", de_quem: "casa", criado_por: "demo-jo", criado_em: agora },
+    { id: "l2", tipo: "saida", valor: 48, data: dia(-1), descricao: "Feira", forma: "pix", conta_id: "c-sicredi", cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: "cat-0-0", de_quem: "jo", criado_por: "demo-jo", criado_em: agora },
+    { id: "l3", tipo: "saida", valor: 1200, data: dia(-2), descricao: "Geladeira", forma: "credito", conta_id: null, cartao_id: "k-mp", parcelas: 6, fonte_id: null, categoria_id: "cat-0-5", de_quem: "casa", criado_por: "demo-diego", criado_em: agora },
+    { id: "l4", tipo: "saida", valor: 622.12, data: dia(-3), descricao: "Águas Cuiabá", forma: "pix", conta_id: "c-sicredi", cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: "cat-0-1", de_quem: "casa", criado_por: "demo-jo", criado_em: agora },
     { id: "l5", tipo: "transferencia", valor: 3000, data: dia(-4), descricao: "Para a conta da Jô", forma: "pix", conta_id: "c-mp", conta_destino_id: "c-sicredi", cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "diego", criado_por: "demo-diego", criado_em: agora },
     { id: "n1", tipo: "entrada", valor: 350, data: dia(0), descricao: "Mensalidade Ana", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-studio", grupo: "aluno" },
     { id: "n2", tipo: "entrada", valor: 350, data: dia(-1), descricao: "Mensalidade Carla", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-studio", grupo: "aluno" },

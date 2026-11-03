@@ -88,6 +88,7 @@ export default function Lancamentos() {
                       {transf ? "Entre contas" : NOME_FORMA[l.forma]}
                       {onde ? ` · ${onde}` : ""}
                       {l.parcelas > 1 ? ` · ${l.parcelas}x` : ""} · {NOME_DONO[l.de_quem]}
+                      {l.categoria_id && l.descricao ? ` · ${nome(l.categoria_id, dados.categorias) ?? ""}` : ""}
                     </span>
                   </span>
                   <span className={`shrink-0 font-medium tabular-nums ${l.tipo === "entrada" ? "text-verde" : transf ? "text-tinta/50" : ""}`}>

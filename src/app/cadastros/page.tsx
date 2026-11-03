@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { EditorCategorias } from "@/components/Categorias";
 import { Pagina } from "@/components/Navegacao";
 import { useSessao } from "@/components/Sessao";
 import { excluir, informarFatura, modoDemo, resetarDemo, salvar, supabase } from "@/lib/dados";
@@ -45,7 +46,9 @@ export default function Ajustes() {
             ? " Sem isso, limites e parcelas não salvam."
             : dados.faltaAtualizar.startsWith("0003")
               ? " Sem isso, as transferências entre contas e os custos fixos das rendas não salvam."
-              : " Sem isso, as seções do Studio Pilates e do Espaço Soletti não aparecem."}
+              : dados.faltaAtualizar.startsWith("0004")
+                ? " Sem isso, as seções do Studio Pilates e do Espaço Soletti não aparecem."
+                : " Sem isso, os grupos de categorias não aparecem."}
         </div>
       )}
 
@@ -65,6 +68,12 @@ export default function Ajustes() {
         {dados.compromissos.map((c) => <EditorCompromisso key={c.id} compromisso={c} />)}
         <NovoCompromisso />
       </Secao>
+
+      {dados.grupos.length > 0 && (
+        <Secao titulo="Grupos e categorias" ajuda="Toque num grupo para renomear, criar ou apagar categorias. Apagar não apaga lançamentos, eles só ficam sem categoria.">
+          <EditorCategorias />
+        </Secao>
+      )}
 
       {!modoDemo && (
         <button className="botao-secundario w-full" onClick={() => supabase().auth.signOut()}>

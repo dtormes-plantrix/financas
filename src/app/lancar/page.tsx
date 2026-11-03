@@ -295,7 +295,13 @@ function Lancar() {
             <label className="rotulo" htmlFor="categoria">Categoria (opcional)</label>
             <select id="categoria" className="campo" value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}>
               <option value="">Sem categoria</option>
-              {dados.categorias.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              {dados.grupos.length > 0
+                ? dados.grupos.map((g) => (
+                    <optgroup key={g.id} label={g.nome}>
+                      {dados.categorias.filter((c) => c.grupo_id === g.id).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    </optgroup>
+                  ))
+                : dados.categorias.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </select>
           </div>
           <div>

@@ -65,5 +65,6 @@ Quando o app ganhar uma função nova que precisa de mais espaço no banco, vai 
 | `0002_limites_e_parcelas.sql` | Limite usado dos cartões, saldo das contas, parcelas mensais (crédito e João) |
 | `0003_transferencias.sql` | Transferências entre contas, custos fixos das rendas (contabilidade, INSS), crédito vencendo dia 18 |
 | `0004_negocios.sql` | Caixas separados do Studio Pilates e do Espaço Soletti |
+| `0005_grupos_e_categorias.sql` | Grupos de categorias, que podem ser criados, editados e apagados em Ajustes |
 
 Enquanto uma atualização não roda, o app avisa em **Ajustes**.

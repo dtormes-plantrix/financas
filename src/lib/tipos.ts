@@ -48,7 +48,9 @@ export type FonteRenda = {
   ativo: boolean;
 };
 
-export type Categoria = { id: string; nome: string };
+export type GrupoCategoria = { id: string; nome: string; ordem: number };
+
+export type Categoria = { id: string; nome: string; grupo_id?: string | null; ordem?: number };
 
 export type Lancamento = {
   id: string;

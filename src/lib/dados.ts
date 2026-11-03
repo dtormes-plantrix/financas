@@ -4,7 +4,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DEMO } from "./demo";
 import type {
-  Cartao, Categoria, Compromisso, Conta, FaturaInformada, FonteRenda, Lancamento, Membro, Negocio,
+  Cartao, Categoria, Compromisso, Conta, FaturaInformada, FonteRenda, Lancamento, Membro, Negocio, GrupoCategoria,
 } from "./tipos";
 
 export type Dados = {
@@ -13,6 +13,7 @@ export type Dados = {
   cartoes: Cartao[];
   fontes: FonteRenda[];
   categorias: Categoria[];
+  grupos: GrupoCategoria[];
   lancamentos: Lancamento[];
   faturasInformadas: FaturaInformada[];
   compromissos: Compromisso[];
@@ -23,7 +24,7 @@ export type Dados = {
   faltaAtualizar?: string | null;
 };
 
-type Tabela = "contas" | "cartoes" | "fontes_renda" | "lancamentos" | "faturas_informadas" | "compromissos" | "negocios";
+type Tabela = "contas" | "cartoes" | "fontes_renda" | "lancamentos" | "faturas_informadas" | "compromissos" | "negocios" | "categorias" | "grupos";
 
 // Tira espaços e aspas que às vezes vêm junto ao colar na Vercel.
 const limpar = (v: string | undefined) => (v ?? "").trim().replace(/^["']|["']$/g, "").trim();
@@ -53,7 +54,7 @@ export function supabase(): SupabaseClient {
 
 // ---------- modo demonstração ----------
 
-const CHAVE_DEMO = "financas-demo-v4";
+const CHAVE_DEMO = "financas-demo-v5";
 
 function lerDemo(): Dados {
   try {
@@ -77,6 +78,8 @@ const CAMPO_DEMO: Record<Tabela, keyof Dados> = {
   faturas_informadas: "faturasInformadas",
   compromissos: "compromissos",
   negocios: "negocios",
+  categorias: "categorias",
+  grupos: "grupos",
 };
 
 /** Separa os lançamentos da casa dos lançamentos dos negócios. */
@@ -85,6 +88,8 @@ function separar(d: Dados): Dados {
   return {
     ...d,
     negocios: d.negocios ?? [],
+    grupos: [...(d.grupos ?? [])].sort((a, b) => a.ordem - b.ordem),
+    categorias: [...d.categorias].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)),
     lancamentos: todos.filter((l) => !l.negocio_id),
     lancamentosNegocios: todos.filter((l) => l.negocio_id),
   };
@@ -95,18 +100,19 @@ function separar(d: Dados): Dados {
 export async function carregarTudo(): Promise<Dados> {
   if (modoDemo) return separar(lerDemo());
   const s = supabase();
-  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias, negocios] = await Promise.all([
+  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias, negocios, grupos] = await Promise.all([
     s.from("membros").select("*"),
     s.from("contas").select("*").order("nome"),
     s.from("cartoes").select("*").order("nome"),
     s.from("fontes_renda").select("*").order("nome"),
-    s.from("categorias").select("*").order("nome"),
+    s.from("categorias").select("*").order("ordem").order("nome"),
     // compras parceladas de até 4 anos atrás ainda podem cair nas faturas atuais
     s.from("lancamentos").select("*").gte("data", dataLimite()).order("data", { ascending: false }).order("criado_em", { ascending: false }),
     s.from("faturas_informadas").select("*"),
     s.from("compromissos").select("*").order("nome"),
     s.from("lancamentos").select("conta_destino_id").limit(1),
     s.from("negocios").select("*").order("nome"),
+    s.from("grupos").select("*").order("ordem").order("nome"),
   ]);
   // Se uma atualização do banco ainda não rodou, o app continua funcionando e avisa em Ajustes.
   const faltaAtualizar = compromissos.error
@@ -115,7 +121,9 @@ export async function carregarTudo(): Promise<Dados> {
       ? "0003_transferencias.sql"
       : negocios.error
         ? "0004_negocios.sql"
-        : null;
+        : grupos.error
+          ? "0005_grupos_e_categorias.sql"
+          : null;
   const erro = [membros, contas, cartoes, fontes, categorias, lancamentos, faturas].find((r) => r.error);
   if (erro?.error) throw new Error(erro.error.message);
   return separar({
@@ -133,6 +141,7 @@ export async function carregarTudo(): Promise<Dados> {
       valor_total: c.valor_total === null ? null : Number(c.valor_total),
     })),
     negocios: (negocios.data ?? []) as Negocio[],
+    grupos: (grupos.data ?? []) as GrupoCategoria[],
     lancamentosNegocios: [],
   });
 }
