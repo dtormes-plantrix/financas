@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const itens = [
   { href: "/", rotulo: "Início", icone: "M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" },
-  { href: "/lancamentos", rotulo: "Lista", icone: "M4 6h16M4 12h16M4 18h10" },
+  { href: "/lancamentos", rotulo: "Extrato", icone: "M4 6h16M4 12h16M4 18h10" },
   { href: "/negocios", rotulo: "Negócios", icone: "M4 8h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM9 8V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3M4 13h16" },
   { href: "/cadastros", rotulo: "Ajustes", icone: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" },
 ];

@@ -107,7 +107,7 @@ export async function carregarTudo(): Promise<Dados> {
     s.from("fontes_renda").select("*").order("nome"),
     s.from("categorias").select("*").order("ordem").order("nome"),
     // compras parceladas de até 4 anos atrás ainda podem cair nas faturas atuais
-    s.from("lancamentos").select("*").gte("data", dataLimite()).order("data", { ascending: false }).order("criado_em", { ascending: false }),
+    lerTodosLancamentos(s),
     s.from("faturas_informadas").select("*"),
     s.from("compromissos").select("*").order("nome"),
     s.from("lancamentos").select("conta_destino_id").limit(1),
@@ -147,6 +147,25 @@ export async function carregarTudo(): Promise<Dados> {
     grupos: (grupos.data ?? []) as GrupoCategoria[],
     lancamentosNegocios: [],
   });
+}
+
+// O Supabase entrega no máximo 1.000 linhas por vez; aqui busca de 1.000 em 1.000 até acabar.
+async function lerTodosLancamentos(s: SupabaseClient): Promise<{ data: Lancamento[] | null; error: { message: string } | null }> {
+  const pagina = 1000;
+  const todos: Lancamento[] = [];
+  for (let de = 0; ; de += pagina) {
+    const r = await s
+      .from("lancamentos")
+      .select("*")
+      .gte("data", dataLimite())
+      .order("data", { ascending: false })
+      .order("criado_em", { ascending: false })
+      .order("id")
+      .range(de, de + pagina - 1);
+    if (r.error) return { data: null, error: r.error };
+    todos.push(...(r.data as Lancamento[]));
+    if (r.data.length < pagina) return { data: todos, error: null };
+  }
 }
 
 function dataLimite(): string {
