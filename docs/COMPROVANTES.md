@@ -18,11 +18,11 @@ Custa cerca de 1 centavo por comprovante, pago à Anthropic com crédito que voc
 2. Adicione a primeira:
    - Key: `ANTHROPIC_API_KEY`
    - Value: a chave `sk-ant-...` do passo anterior
-   - Tipo **Sensitive** (essa é secreta; as do Supabase continuam como estão).
+   - Tipo **Secret** (essa é secreta; as do Supabase continuam como estão). Environments: **Production**.
 3. Adicione a segunda (é a senha do Atalho do iPhone, da Parte 3):
    - Key: `ATALHO_CHAVE`
    - Value: a senha que eu te mandei na conversa (ou invente uma longa, só letras e números)
-   - Tipo **Sensitive**.
+   - Tipo **Secret**, Environments: **Production**.
 4. Abra **Deployments**, no último clique nos **três pontinhos** > **Redeploy**. Espere ficar verde.
 
 Pronto: o botão **Enviar comprovante** já funciona.
