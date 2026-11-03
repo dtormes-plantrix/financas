@@ -8,6 +8,7 @@ import { excluir, informarFatura, modoDemo, resetarDemo, salvar, supabase } from
 import { chaveMes, nomeMes, somarMeses, type Mes } from "@/lib/fatura";
 import { dataCurta, hoje, lerValor, NOME_DONO, reais } from "@/lib/formato";
 import { liquido } from "@/lib/painel";
+import { sugerirRecorrentes, type Sugestao } from "@/lib/recorrentes";
 import type { Cartao, Compromisso, Conta, FonteRenda } from "@/lib/tipos";
 
 function mesAtual(): Mes {
@@ -50,7 +51,9 @@ export default function Ajustes() {
                 ? " Sem isso, as seções do Studio Pilates e do Espaço Soletti não aparecem."
                 : dados.faltaAtualizar.startsWith("0005")
                   ? " Sem isso, os grupos de categorias não aparecem."
-                  : " Sem isso, as categorias do Studio e do Espaço não aparecem."}
+                  : dados.faltaAtualizar.startsWith("0006")
+                    ? " Sem isso, as categorias do Studio e do Espaço não aparecem."
+                    : " Sem isso, as contas que se repetem não salvam."}
         </div>
       )}
 
@@ -66,8 +69,10 @@ export default function Ajustes() {
         {dados.contas.map((c) => <EditorConta key={c.id} conta={c} />)}
       </Secao>
 
-      <Secao titulo="Parcelas mensais" ajuda="Empréstimos, dívidas e contas fixas fora do cartão. Entram no painel até serem pagas.">
-        {dados.compromissos.map((c) => <EditorCompromisso key={c.id} compromisso={c} />)}
+      <ContasQueSeRepetem />
+
+      <Secao titulo="Parcelas e contas fixas" ajuda="Empréstimos, dívidas, assinaturas e contas de todo mês. Entram no previsto do painel até serem pagas.">
+        {dados.compromissos.filter((c) => c.ativo).map((c) => <EditorCompromisso key={c.id} compromisso={c} />)}
         <NovoCompromisso />
       </Secao>
 
@@ -286,8 +291,62 @@ function lerMesTexto(t: string): string | null {
   return m ? `${m[2]}-${m[1].padStart(2, "0")}` : null;
 }
 
+/** Sugestões tiradas dos extratos: o que apareceu igual em dois meses ou mais. */
+function ContasQueSeRepetem() {
+  const { dados } = useSessao();
+  const sugestoes = sugerirRecorrentes(dados.lancamentos, dados.compromissos, hoje());
+  if (sugestoes.length === 0) return null;
+  return (
+    <Secao
+      titulo="Contas que se repetem"
+      ajuda="Apareceram nos extratos em dois meses ou mais, com valor parecido. Toque em Incluir para somar no previsto dos próximos meses."
+    >
+      <div id="fixas" className="cartao divide-y divide-tinta/5 p-0">
+        {sugestoes.map((x) => <LinhaSugestao key={`${x.cartao_id ?? "conta"}|${x.chave}`} s={x} />)}
+      </div>
+    </Secao>
+  );
+}
+
+function LinhaSugestao({ s }: { s: Sugestao }) {
+  const { dados } = useSessao();
+  const { estado, rodar } = useSalvar();
+  const onde = s.cartao_id
+    ? `cartão ${dados.cartoes.find((c) => c.id === s.cartao_id)?.nome ?? ""}`
+    : dados.contas.find((c) => c.id === s.conta_id)?.nome ?? "conta";
+  const gravar = (ativo: boolean) =>
+    rodar(async () => {
+      await salvar("compromissos", {
+        nome: s.nome,
+        valor: s.valor,
+        mes_inicial: chaveMes(mesAtual()),
+        parcela_inicial: 1,
+        total_parcelas: null,
+        valor_total: null,
+        dia_vencimento: s.dia,
+        conta_id: s.conta_id,
+        cartao_id: s.cartao_id,
+        busca: s.chave,
+        ativo,
+      });
+    });
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 text-sm">
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-medium">{s.nome}</div>
+        <div className="text-xs text-tinta/60">
+          {reais(s.valor)} · dia {s.dia} · {onde}
+          {estado && estado !== "salvo" && <span className="text-vermelho"> · {estado}</span>}
+        </div>
+      </div>
+      <button className="botao-secundario shrink-0 px-3 py-1.5 text-xs" disabled={estado === "salvando"} onClick={() => gravar(true)}>Incluir</button>
+      <button className="shrink-0 text-xs text-tinta/50 underline" disabled={estado === "salvando"} onClick={() => gravar(false)}>Não é fixa</button>
+    </div>
+  );
+}
+
 function EditorCompromisso({ compromisso: c }: { compromisso: Compromisso }) {
-  const { recarregar } = useSessao();
+  const { recarregar, dados } = useSessao();
   const { estado, rodar } = useSalvar();
   const [valor, setValor] = useState(paraTexto(c.valor));
   const [total, setTotal] = useState(paraTexto(c.valor_total ?? c.total_parcelas));
@@ -298,7 +357,10 @@ function EditorCompromisso({ compromisso: c }: { compromisso: Compromisso }) {
 
   return (
     <div className="cartao space-y-3">
-      <div className="font-medium">{c.nome}</div>
+      <div className="font-medium">
+        {c.nome}
+        {c.cartao_id && <span className="ml-1 text-xs font-normal text-tinta/50">· no cartão {dados.cartoes.find((x) => x.id === c.cartao_id)?.nome}</span>}
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <Campo rotulo="Valor por mês" valor={valor} onChange={setValor} />
         <Campo rotulo={divida ? "Total a devolver" : "Total de parcelas"} valor={total} onChange={setTotal} />
