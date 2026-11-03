@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",
+    "heic-decode": "^2.1.0",
+    "jpeg-js": "^0.4.4",
     "next": "15.5.28",
     "react": "19.1.1",
     "react-dom": "19.1.1"
