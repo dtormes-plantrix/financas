@@ -6,16 +6,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { Pagina } from "@/components/Navegacao";
 import { useSessao } from "@/components/Sessao";
-import { salvar } from "@/lib/dados";
 import { nomeMes, somarMeses, type Mes } from "@/lib/fatura";
-import { dataCurta, hoje, lerValor, reais } from "@/lib/formato";
+import { dataCurta, hoje, reais } from "@/lib/formato";
 import {
   limitesDosCartoes,
   noMes,
   pendenteAteFimDoMes,
   resumoDoMes,
   situacaoDasContas,
-  type ItemCompromisso,
   type ResumoMes,
   type SituacaoConta,
 } from "@/lib/painel";
@@ -58,7 +56,7 @@ export default function Painel() {
         <BlocoSobra r={rSeguinte} rotulo="Mês que vem" ativo={aberto === "seguinte"} onClick={() => setAberto("seguinte")} />
       </div>
 
-      <Conta r={detalhe} />
+      <Conta r={detalhe} hoje={dia} />
       <AvisoFixas />
       <Limites rAtual={rAtual} rSeguinte={rSeguinte} hoje={dia} />
     </Pagina>
@@ -83,51 +81,84 @@ function BlocoSobra({ r, rotulo, ativo, onClick }: { r: ResumoMes; rotulo: strin
   );
 }
 
-/** A conta do mês escolhido: entra, sai, sobra. Cada linha abre o detalhe. */
-function Conta({ r }: { r: ResumoMes }) {
+/**
+ * A conta do mês escolhido: entrada prevista menos saída prevista dá a sobra.
+ * "Já entrou" e "Já saiu" mostram quanto disso já aconteceu.
+ */
+function Conta({ r, hoje: dia }: { r: ResumoMes; hoje: string }) {
   const semFatura = r.itensFatura.some((f) => f.informado === null);
+  const entrada = r.recebido + r.aReceber;
+  const saida = r.gastoAVista + r.faturas + r.parcelas;
+  const fixas = r.itensCompromisso.reduce((s, c) => s + Math.max(c.devido, c.pago), 0);
+  const outros = saida - r.faturas - fixas;
+  const deFontes = r.rendas.reduce((s, x) => s + x.recebido, 0);
+  const outrasEntradas = r.recebido - deFontes;
+  const ehAtual = noMes(dia, r.mes);
+  const diaHoje = Number(dia.slice(8, 10));
+  const faturasPagas = ehAtual
+    ? r.itensFatura.filter((f) => f.cartao.dia_vencimento < diaHoje).reduce((s, f) => s + f.valor, 0)
+    : 0;
+  const saiu = r.gastoAVista + faturasPagas;
+
   return (
     <div className="cartao mb-3 p-0 text-sm">
       <div className="px-3 pt-2 text-xs font-medium text-tinta/50">Conta de {nomeMes(r.mes)}</div>
 
-      <Abre rotulo="Entra" valor={r.recebido + r.aReceber} cor="text-verde">
-        <Sub rotulo="Já entrou" valor={r.recebido} />
-        {r.rendas.filter((x) => x.falta > 0).map((x) => (
-          <Sub key={x.fonte.id} rotulo={`Falta: ${x.fonte.nome}`} valor={x.falta} />
+      <Abre rotulo="Entrada prevista" valor={entrada} cor="text-verde">
+        {r.rendas.map((x) => (
+          <Sub
+            key={x.fonte.id}
+            rotulo={`${x.fonte.nome}${x.falta > 0 ? (x.recebido > 0 ? ` · falta ${curto(x.falta)}` : " · ainda não entrou") : " · entrou"}`}
+            valor={Math.max(x.previsto, x.recebido)}
+          />
         ))}
+        {Math.abs(outrasEntradas) >= 0.01 && <Sub rotulo="Outras entradas" valor={outrasEntradas} />}
       </Abre>
+      <Ja rotulo="Já entrou" valor={r.recebido} />
 
-      <Abre rotulo="Pix, débito e dinheiro" valor={-r.gastoAVista} />
-
-      <Abre rotulo="Faturas" valor={-r.faturas}>
+      <Abre rotulo="Saída prevista" valor={-saida}>
         {r.itensFatura.map((f) => (
           <Sub
             key={f.cartao.id}
-            rotulo={`${f.cartao.nome} · dia ${f.cartao.dia_vencimento}${f.informado === null ? " · só o lançado aqui" : ""}${f.fixas.length ? ` · com ${f.fixas.length} ${f.fixas.length > 1 ? "contas fixas" : "conta fixa"}` : ""}`}
+            rotulo={`Fatura ${f.cartao.nome} · dia ${f.cartao.dia_vencimento}${f.informado === null ? " · parcial" : ""}`}
             valor={-f.valor}
           />
         ))}
         {semFatura && (
-          <p className="px-3 pb-2 pl-6 text-xs text-tinta/50">
-            Digite a fatura do app do banco em <Link href="/cadastros" className="underline">Ajustes</Link> para o número começar certo.
+          <p className="px-3 pb-1 pl-6 text-[11px] text-tinta/50">
+            Digite a fatura do app do banco em <Link href="/cadastros" className="underline">Ajustes</Link> para o número ficar certo.
+          </p>
+        )}
+        {r.itensCompromisso.map((c) => (
+          <Sub
+            key={c.compromisso.id}
+            rotulo={`${c.compromisso.nome}${c.falta > 0 ? "" : " · pago"}`}
+            valor={-Math.max(c.devido, c.pago)}
+          />
+        ))}
+        {Math.abs(outros) >= 0.01 && <Sub rotulo="Outros gastos já lançados" valor={-outros} />}
+        {r.itensCompromisso.length > 0 && (
+          <p className="px-3 pb-1 pl-6 text-[11px] text-tinta/50">
+            Para dar baixa numa parcela, use o <Link href="/lancamentos" className="underline">Extrato</Link>.
           </p>
         )}
       </Abre>
-
-      {r.itensCompromisso.length > 0 && (
-        <div className="border-t border-tinta/5 px-3 py-1.5">
-          <div className="flex items-center justify-between">
-            <span>Parcelas e contas fixas</span>
-            <span className="tabular-nums">{reais(-r.parcelas)}</span>
-          </div>
-          {r.itensCompromisso.map((c) => <ParcelaMensal key={c.compromisso.id} item={c} mes={r.mes} />)}
-        </div>
-      )}
+      <Ja rotulo="Já saiu" valor={-saiu} />
 
       <div className="flex items-center justify-between border-t border-tinta/10 px-3 py-2 font-semibold">
         <span>Sobra</span>
         <span className={`tabular-nums ${r.sobra < 0 ? "text-vermelho" : "text-verde"}`}>{reais(r.sobra)}</span>
       </div>
+    </div>
+  );
+}
+
+/** Linha pequena logo abaixo do previsto: quanto disso já aconteceu. */
+function Ja({ rotulo, valor }: { rotulo: string; valor: number }) {
+  return (
+    <div className="flex items-center justify-between px-3 pb-1.5 pl-6 text-xs text-tinta/50">
+      <span>{rotulo}</span>
+      <span className="tabular-nums">{reais(valor)}</span>
     </div>
   );
 }
@@ -174,106 +205,6 @@ function Sub({ rotulo, valor }: { rotulo: string; valor: number }) {
   );
 }
 
-/** Uma parcela mensal numa linha, com o botão "Paguei" e o valor pago editável. */
-function ParcelaMensal({ item, mes }: { item: ItemCompromisso; mes: Mes }) {
-  const { dados, eu, recarregar } = useSessao();
-  const [pagando, setPagando] = useState(false);
-  const [valorTexto, setValorTexto] = useState("");
-  const [salvando, setSalvando] = useState(false);
-  const contas = dados.contas.filter((c) => c.ativo);
-  const minhaConta = contas.find((c) => c.dono === eu.apelido) ?? contas[0];
-  const [contaId, setContaId] = useState(minhaConta?.id);
-  const pagamentos = dados.lancamentos.filter((l) => l.compromisso_id === item.compromisso.id && noMes(l.data, mes));
-  const c = item.compromisso;
-
-  function abrir() {
-    setValorTexto(String(item.falta || item.devido).replace(".", ","));
-    setPagando(true);
-  }
-
-  async function confirmar() {
-    const valor = lerValor(valorTexto);
-    if (valor <= 0) return;
-    setSalvando(true);
-    try {
-      await salvar("lancamentos", {
-        tipo: "saida",
-        valor,
-        data: hoje(),
-        descricao: c.nome,
-        forma: "pix",
-        conta_id: contaId ?? null,
-        cartao_id: null,
-        parcelas: 1,
-        fonte_id: null,
-        categoria_id: null,
-        de_quem: "casa",
-        compromisso_id: c.id,
-      });
-      await recarregar();
-      setPagando(false);
-    } finally {
-      setSalvando(false);
-    }
-  }
-
-  return (
-    <div className="py-0.5 pl-3 text-xs text-tinta/60">
-      <div className="flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate">
-          {c.nome.replace("Devolver poupança do ", "")} · {item.rotulo.replace("parcela ", "").replace(" de ", "/").replace("depois deste mês faltam", "restam")}
-          {c.dia_vencimento ? ` · dia ${c.dia_vencimento}` : ""}
-        </span>
-        <span className="flex shrink-0 items-center gap-2">
-          {pagamentos.map((p) => (
-            <Link key={p.id} href={`/lancar?id=${p.id}`} className="rounded bg-verde-claro px-1.5 py-0.5 text-verde">
-              pago {curto(p.valor)} ✎
-            </Link>
-          ))}
-          {item.falta > 0 && <span className="tabular-nums">{curto(-item.falta)}</span>}
-          {!pagando && item.falta > 0 && noMes(hoje(), mes) && (
-            <button onClick={abrir} className="rounded-md bg-tinta px-2 py-1 font-medium text-white">Paguei</button>
-          )}
-        </span>
-      </div>
-
-      {pagando && (
-        <div className="mt-1 space-y-2 rounded-xl bg-papel p-2 text-sm text-tinta">
-          <div className="flex items-center gap-2">
-            <label className="shrink-0 text-xs text-tinta/60" htmlFor={`pago-${c.id}`}>Quanto pagou</label>
-            <div className="flex flex-1 items-center rounded-lg bg-white px-2 ring-1 ring-tinta/15">
-              <span className="text-tinta/40">R$</span>
-              <input
-                id={`pago-${c.id}`}
-                inputMode="decimal"
-                autoFocus
-                value={valorTexto}
-                onChange={(e) => setValorTexto(e.target.value)}
-                className="w-full bg-transparent px-2 py-1.5 font-semibold outline-none"
-              />
-            </div>
-          </div>
-          {contas.length > 1 && (
-            <div className="flex flex-wrap gap-1.5">
-              {contas.map((k) => (
-                <button key={k.id} onClick={() => setContaId(k.id)} className={`chip px-3 py-1 text-xs ${contaId === k.id ? "chip-ativo" : ""}`}>
-                  {k.nome}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <button onClick={confirmar} disabled={salvando} className="rounded-lg bg-tinta px-3 py-1.5 font-medium text-white">
-              {salvando ? "Salvando…" : "Confirmar"}
-            </button>
-            <button onClick={() => setPagando(false)} className="px-2 py-1.5 text-tinta/60">Cancelar</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function Barra({ usado, total }: { usado: number; total: number }) {
   const p = total > 0 ? Math.min(100, Math.max(0, (usado / total) * 100)) : 0;
   const cor = p >= 90 ? "bg-vermelho" : p >= 70 ? "bg-amarelo" : "bg-verde";
@@ -297,25 +228,24 @@ function Limites({ rAtual, rSeguinte, hoje: dia }: { rAtual: ResumoMes; rSeguint
   return (
     <>
       <div className="mb-1 flex items-baseline justify-between px-1 text-xs font-medium text-tinta/50">
-        <span>Limite livre dos cartões</span>
+        <span>Limite livre dos cartões e do cheque especial</span>
         <Link href="/cadastros" className="underline">atualizar</Link>
       </div>
-      <div className={`mb-3 grid gap-2 ${cartoes.length >= 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+      <div className="mb-3 grid grid-cols-2 gap-2">
         {cartoes.map((l) => (
           <div key={l.cartao.id} className="cartao px-2.5 py-2">
             <div className="truncate text-xs text-tinta/60">{l.cartao.nome.replace(" Visa Gold", "")}</div>
-            <div className={`text-sm font-semibold tabular-nums ${l.livre < 0 ? "text-vermelho" : ""}`}>{curto(l.livre)}</div>
+            <div className={`text-sm font-semibold tabular-nums ${l.livre < 0 ? "text-vermelho" : ""}`}>{curto(l.livre)} livre</div>
             <Barra usado={l.usado} total={l.limite} />
-            <div className="mt-0.5 text-[10px] text-tinta/50">usando {curto(l.usado)}</div>
+            <div className="mt-0.5 text-[10px] text-tinta/50">usando {curto(l.usado)} de {curto(l.limite)}</div>
           </div>
         ))}
+        {contas.filter((c) => c.conta.limite_cheque_especial).map((c) => <ChequeEspecial key={c.conta.id} c={c} />)}
       </div>
-
-      {contas.filter((c) => c.conta.limite_cheque_especial).map((c) => <ChequeEspecial key={c.conta.id} c={c} />)}
 
       {comSaldo.length > 0 && (
         <div className="cartao px-3 py-2">
-          <div className="mb-1 text-xs font-medium text-tinta/50">Contas somadas, com a sobra prevista</div>
+          <div className="mb-1 text-xs font-medium text-tinta/50">Dinheiro nas contas (saldo de hoje + o que ainda vai entrar e sair)</div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <Projecao rotulo="Hoje" valor={saldoHoje} limite={limiteCheque} />
             <Projecao rotulo={`Fim de ${nomeMes(rAtual.mes)}`} valor={fimMes} limite={limiteCheque} />
@@ -330,30 +260,29 @@ function Limites({ rAtual, rSeguinte, hoje: dia }: { rAtual: ResumoMes; rSeguint
   );
 }
 
-/** Fica vermelho quando a conta está no cheque especial. */
+/** Quadrinho do cheque especial, ao lado dos cartões. Fica vermelho quando está em uso. */
 function ChequeEspecial({ c }: { c: SituacaoConta }) {
   const limite = Number(c.conta.limite_cheque_especial);
+  const nome = `Cheque ${c.conta.nome.replace(/^Conta\s+/i, "")}`;
   if (c.saldo === null) {
     return (
-      <div className="cartao mb-3 px-3 py-2 text-xs text-tinta/60">
-        Cheque especial · {c.conta.nome}: informe o saldo em <Link href="/cadastros" className="underline">Ajustes</Link>.
-      </div>
+      <Link href="/cadastros" className="cartao px-2.5 py-2 text-xs text-tinta/60">
+        <div className="truncate">{nome}</div>
+        <div className="mt-1 underline">informar o saldo</div>
+      </Link>
     );
   }
   const emUso = c.chequeEmUso > 0;
   const p = limite ? Math.min(100, (c.chequeEmUso / limite) * 100) : 0;
   return (
-    <div className={`mb-3 rounded-2xl px-3 py-2 shadow-sm ring-1 ${emUso ? "bg-vermelho text-white ring-vermelho" : "bg-white ring-tinta/5"}`}>
-      <div className="flex items-baseline justify-between text-sm">
-        <span className="font-medium">{emUso ? "Usando cheque especial" : "Cheque especial"} · {c.conta.nome}</span>
-        <span className="font-semibold tabular-nums">{emUso ? curto(-c.chequeEmUso) : "sem uso"}</span>
-      </div>
+    <div className={`rounded-2xl px-2.5 py-2 shadow-sm ring-1 ${emUso ? "bg-vermelho text-white ring-vermelho" : "bg-white ring-tinta/5"}`}>
+      <div className={`truncate text-xs ${emUso ? "text-white/85" : "text-tinta/60"}`}>{nome}</div>
+      <div className="text-sm font-semibold tabular-nums">{curto(c.chequeLivre ?? 0)} livre</div>
       <div className={`mt-1 h-1.5 overflow-hidden rounded-full ${emUso ? "bg-white/30" : "bg-tinta/10"}`}>
         <div className="h-full rounded-full bg-white" style={{ width: `${p}%` }} />
       </div>
       <div className={`mt-0.5 text-[10px] ${emUso ? "text-white/85" : "text-tinta/50"}`}>
-        livre {curto(c.chequeLivre ?? 0)} de {curto(limite)}
-        {c.desde ? ` · saldo do app em ${dataCurta(c.desde)}` : ""}
+        {emUso ? `usando ${curto(c.chequeEmUso)} de ${curto(limite)}` : "sem uso"}
       </div>
     </div>
   );

@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Pagina } from "@/components/Navegacao";
+import { ParcelasDoMes } from "@/components/Parcelas";
 import { useSessao } from "@/components/Sessao";
 import { nomeMes, somarMeses, type Mes } from "@/lib/fatura";
 import { dataCurta, NOME_DONO, NOME_FORMA, reais } from "@/lib/formato";
@@ -192,6 +193,8 @@ export default function Extrato() {
           <div className="text-xl font-semibold text-vermelho">{reais(saidas)}</div>
         </div>
       </div>
+
+      {!f.todosOsMeses && <ParcelasDoMes mes={f.mes} />}
 
       <p className="mb-3 text-sm text-tinta/60">
         {lista.length === 1 ? "1 lançamento" : `${lista.length} lançamentos`} · toque em um para editar ou apagar
