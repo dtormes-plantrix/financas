@@ -3,7 +3,7 @@
 // Painel: tudo numa tela só, sem rolar. Detalhes abrem com um toque.
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pagina } from "@/components/Navegacao";
 import { useSessao } from "@/components/Sessao";
 import { nomeMes, somarMeses, type Mes } from "@/lib/fatura";
@@ -45,20 +45,26 @@ export default function Painel() {
   const detalhe = aberto === "atual" ? rAtual : rSeguinte;
 
   return (
-    <Pagina>
-      <div className="mb-3 flex items-baseline justify-between">
-        <h1 className="text-xl font-semibold">Olá, {eu.nome}</h1>
+    <Pagina larga>
+      <div className="mb-3 flex items-baseline justify-between lg:mb-6">
+        <h1 className="text-xl font-semibold lg:text-2xl">Olá, {eu.nome}</h1>
         <span className="text-sm text-tinta/50">hoje {dataCurta(dia)}</span>
       </div>
 
-      <div className="mb-3 grid grid-cols-2 gap-2">
-        <BlocoSobra r={rAtual} rotulo="Este mês" ativo={aberto === "atual"} onClick={() => setAberto("atual")} />
-        <BlocoSobra r={rSeguinte} rotulo="Mês que vem" ativo={aberto === "seguinte"} onClick={() => setAberto("seguinte")} />
+      {/* No computador: a conta do mês à esquerda, limites e saldos à direita */}
+      <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+        <div>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <BlocoSobra r={rAtual} rotulo="Este mês" ativo={aberto === "atual"} onClick={() => setAberto("atual")} />
+            <BlocoSobra r={rSeguinte} rotulo="Mês que vem" ativo={aberto === "seguinte"} onClick={() => setAberto("seguinte")} />
+          </div>
+          <Conta r={detalhe} hoje={dia} />
+          <AvisoFixas />
+        </div>
+        <div>
+          <Limites rAtual={rAtual} rSeguinte={rSeguinte} hoje={dia} />
+        </div>
       </div>
-
-      <Conta r={detalhe} hoje={dia} />
-      <AvisoFixas />
-      <Limites rAtual={rAtual} rSeguinte={rSeguinte} hoje={dia} />
     </Pagina>
   );
 }
@@ -175,7 +181,15 @@ function AvisoFixas() {
   );
 }
 
+/** No computador há espaço: os detalhes já começam abertos. */
+function useTelaGrande() {
+  const [grande, setGrande] = useState(false);
+  useEffect(() => setGrande(window.matchMedia("(min-width: 1024px)").matches), []);
+  return grande;
+}
+
 function Abre({ rotulo, valor, cor, children }: { rotulo: string; valor: number; cor?: string; children?: React.ReactNode }) {
+  const grande = useTelaGrande();
   const linha = (
     <>
       <span className="flex items-center gap-1">
@@ -189,7 +203,7 @@ function Abre({ rotulo, valor, cor, children }: { rotulo: string; valor: number;
     return <div className="flex items-center justify-between border-t border-tinta/5 px-3 py-1.5">{linha}</div>;
   }
   return (
-    <details className="group border-t border-tinta/5">
+    <details open={grande || undefined} className="group border-t border-tinta/5">
       <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-1.5 [&::-webkit-details-marker]:hidden">{linha}</summary>
       <div className="pb-1">{children}</div>
     </details>
