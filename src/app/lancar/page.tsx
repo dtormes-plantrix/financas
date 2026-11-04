@@ -464,7 +464,7 @@ function Lancar() {
       )}
 
       {aviso && (
-        <div role="status" className="fixed inset-x-4 bottom-28 z-30 mx-auto max-w-md rounded-2xl bg-tinta px-4 py-3 text-white shadow-lg">
+        <div role="status" className="fixed inset-x-4 bottom-28 z-30 lg:bottom-8 lg:left-60 mx-auto max-w-md rounded-2xl bg-tinta px-4 py-3 text-white shadow-lg">
           {aviso}
         </div>
       )}
