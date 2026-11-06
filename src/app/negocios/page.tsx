@@ -126,7 +126,7 @@ function Caixa({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
     <>
       <Painel r={r} />
 
-      <BlocoOrcamento itens={orcamento} ritmo={ritmoDoMes(mes, hoje())} titulo={`Orçamento de ${nomeMes(mes)}`} ajustes="/cadastros#negocios" />
+      <BlocoOrcamento itens={orcamento} ritmo={ritmoDoMes(mes, hoje())} mes={mes} titulo={`Orçamento de ${nomeMes(mes)}`} ajustes="/cadastros#negocios" />
 
       <PassarParaCasa negocio={negocio} sugerido={Math.max(0, r.caixa)} />
 

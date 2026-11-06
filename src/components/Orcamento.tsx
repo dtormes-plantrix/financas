@@ -58,15 +58,24 @@ const COR = {
   estourou: { barra: "bg-vermelho", texto: "text-vermelho" },
 } as const;
 
-export function BarraOrcamento({ item, ritmo }: { item: ItemOrcamento; ritmo: number }) {
+/** Com `mes`, a barra vira um link para o Extrato daquela categoria no mês. */
+export function BarraOrcamento({ item, ritmo, mes }: { item: ItemOrcamento; ritmo: number; mes?: Mes }) {
   const { orcamento, gasto, situacao } = item;
   const cor = COR[situacao];
   const p = orcamento > 0 ? Math.min(100, (gasto / orcamento) * 100) : 0;
   const resto = orcamento - gasto;
+  const Caixa = ({ children }: { children: React.ReactNode }) =>
+    mes ? (
+      <Link href={`/lancamentos?categoria=${item.categoria.id}&mes=${mes.ano}-${String(mes.mes).padStart(2, "0")}`} className="block">
+        {children}
+      </Link>
+    ) : (
+      <div>{children}</div>
+    );
   return (
-    <div>
+    <Caixa>
       <div className="flex items-baseline justify-between gap-2 text-sm">
-        <span className="truncate font-medium">{item.categoria.nome}</span>
+        <span className="truncate font-medium">{item.categoria.nome}{mes && <span className="ml-1 text-tinta/30">›</span>}</span>
         <span className="shrink-0 tabular-nums">
           <span className={`font-semibold ${situacao === "ok" ? "" : cor.texto}`}>{curto(gasto)}</span>
           <span className="text-tinta/50"> de {curto(orcamento)}</span>
@@ -92,12 +101,12 @@ export function BarraOrcamento({ item, ritmo }: { item: ItemOrcamento; ritmo: nu
             ? `gastando rápido · ainda tem ${curto(resto)}`
             : `ainda tem ${curto(resto)}`}
       </div>
-    </div>
+    </Caixa>
   );
 }
 
 /** Bloco com uma barra por categoria que tem orçamento. */
-export function BlocoOrcamento({ itens, ritmo, titulo = "Orçamento do mês", ajustes = "/cadastros" }: { itens: ItemOrcamento[]; ritmo: number; titulo?: string; ajustes?: string }) {
+export function BlocoOrcamento({ itens, ritmo, mes, titulo = "Orçamento do mês", ajustes = "/cadastros" }: { itens: ItemOrcamento[]; ritmo: number; mes?: Mes; titulo?: string; ajustes?: string }) {
   const total = itens.reduce((s, i) => s + i.orcamento, 0);
   const gasto = itens.reduce((s, i) => s + i.gasto, 0);
   return (
@@ -115,7 +124,7 @@ export function BlocoOrcamento({ itens, ritmo, titulo = "Orçamento do mês", aj
         </p>
       ) : (
         <div className="space-y-2.5">
-          {itens.map((i) => <BarraOrcamento key={i.categoria.id} item={i} ritmo={ritmo} />)}
+          {itens.map((i) => <BarraOrcamento key={i.categoria.id} item={i} ritmo={ritmo} mes={mes} />)}
         </div>
       )}
       {itens.length > 0 && ritmo > 0 && ritmo < 1 && (
