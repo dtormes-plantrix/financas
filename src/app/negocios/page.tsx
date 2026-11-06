@@ -14,7 +14,7 @@ import { SeletorCategoria } from "@/components/SeletorCategoria";
 import { excluir, modoDemo, salvar } from "@/lib/dados";
 import { nomeMes, somarMeses, type Mes } from "@/lib/fatura";
 import { dataCurta, hoje, lerValor, NOME_FORMA, reais } from "@/lib/formato";
-import { NOME_GRUPO, repassesDoNegocio, resumoNegocio, type ResumoNegocio } from "@/lib/negocios";
+import { NOME_GRUPO, previsaoEntradas, repassesDoNegocio, resumoNegocio, type PrevisaoEntradas, type ResumoNegocio } from "@/lib/negocios";
 import { gastosPorCategoria, ritmoDoMes } from "@/lib/orcamento";
 import { noMes } from "@/lib/painel";
 import type { Forma, Grupo, Lancamento, Negocio } from "@/lib/tipos";
@@ -84,7 +84,8 @@ function useNegocio(negocio: Negocio, mes: Mes) {
     const m = somarMeses(mes, -k);
     return { mes: m, r: resumoNegocio(negocio, m, dados.lancamentosNegocios, dados.lancamentos) };
   });
-  return { r, orcamento, historico };
+  const previsao = previsaoEntradas(negocio, mes, dados.lancamentosNegocios);
+  return { r, orcamento, historico, previsao };
 }
 
 /** Seletor de mês: ‹ novembro › */
@@ -140,7 +141,7 @@ function Numero({ rotulo, valor, cor }: { rotulo: string; valor: number; cor?: b
 }
 
 function CartaoNegocio({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
-  const { r, orcamento, historico } = useNegocio(negocio, mes);
+  const { r, orcamento, historico, previsao } = useNegocio(negocio, mes);
   const saidas = r.fixas + r.variaveis;
   const t = tom(r.resultado, r.entradas);
   const alerta = orcamento.filter((i) => i.situacao !== "ok");
@@ -158,6 +159,11 @@ function CartaoNegocio({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
         <div><span className="block text-xs text-tinta/60">Entrou</span><span className="font-semibold tabular-nums text-verde">{curto(r.entradas)}</span></div>
         <div><span className="block text-xs text-tinta/60">Saiu</span><span className="font-semibold tabular-nums text-vermelho">{curto(saidas)}</span></div>
       </div>
+      {previsao.previsto > previsao.jaEntrou && (
+        <div className="mt-1 text-xs text-tinta/60">
+          Ainda deve entrar <strong className="text-verde">{curto(previsao.previsto - previsao.jaEntrou)}</strong> · previsto {curto(previsao.previsto)}
+        </div>
+      )}
       <MiniGrafico historico={historico} />
       <div className="mt-2 flex items-baseline justify-between border-t border-tinta/10 pt-2 text-xs text-tinta/60">
         <span>No caixa do negócio</span>
@@ -199,7 +205,7 @@ function MiniGrafico({ historico }: { historico: { mes: Mes; r: ResumoNegocio }[
 
 function PainelNegocio({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
   const { dados } = useSessao();
-  const { r, orcamento, historico } = useNegocio(negocio, mes);
+  const { r, orcamento, historico, previsao } = useNegocio(negocio, mes);
   const t = tom(r.resultado, r.entradas);
   const qtd = dados.lancamentosNegocios.filter((l) => l.negocio_id === negocio.id && noMes(l.data, mes)).length;
   const base = `/negocios?n=${negocio.id}`;
@@ -230,6 +236,7 @@ function PainelNegocio({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
             Ver os {qtd} lançamentos de {nomeMes(mes)}
           </Link>
 
+          <Previsao p={previsao} mes={mes} espaco={/espa/i.test(negocio.nome)} />
           <EntrouSaiu r={r} />
           <BlocoOrcamento itens={orcamento} ritmo={ritmoDoMes(mes, hoje())} titulo={`Orçamento de ${nomeMes(mes)}`} ajustes="/cadastros#negocios" />
         </div>
@@ -243,6 +250,60 @@ function PainelNegocio({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
         </div>
       </div>
     </Pagina>
+  );
+}
+
+/** O que ainda deve entrar este mês e o previsto para o mês que vem. */
+function Previsao({ p, mes, espaco }: { p: PrevisaoEntradas; mes: Mes; espaco: boolean }) {
+  const quem = (n: number) => (espaco ? (n === 1 ? "aluguel" : "aluguéis") : n === 1 ? "aluno" : "alunos");
+  const falta = p.previsto - p.jaEntrou;
+  const seguinte = somarMeses(mes, 1);
+  const sobraSeguinte = p.previstoSeguinte - p.fixas;
+  const pct = p.previsto > 0 ? Math.min(100, (p.jaEntrou / p.previsto) * 100) : 0;
+  if (p.previsto === 0 && p.previstoSeguinte === 0) return null;
+  return (
+    <div className="cartao mb-3 px-3 py-2.5">
+      <div className="mb-1 flex items-baseline justify-between text-xs font-medium text-tinta/50">
+        <span>Previsão de entradas</span>
+        <span className="tabular-nums">{curto(p.jaEntrou)} de {curto(p.previsto)}</span>
+      </div>
+      <div className="flex items-baseline justify-between text-sm">
+        <span className="font-medium capitalize">{nomeMes(mes)}</span>
+        <span className="tabular-nums">previsto <strong>{curto(p.previsto)}</strong></span>
+      </div>
+      <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-verde-claro" role="meter" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
+        <div className="h-full rounded-full bg-verde" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="mt-0.5 text-[11px] text-tinta/60">
+        {falta > 0 ? (
+          <>já entrou {curto(p.jaEntrou)} · <span className="text-verde">ainda deve entrar {curto(falta)}</span> de {p.faltam.length} {quem(p.faltam.length)}</>
+        ) : (
+          <>todos que pagaram no mês anterior já pagaram</>
+        )}
+      </div>
+      {p.faltam.length > 0 && (
+        <details className="mt-1 text-xs">
+          <summary className="cursor-pointer text-tinta/60 underline">quem ainda não pagou</summary>
+          <ul className="mt-1 space-y-0.5">
+            {p.faltam.map((f) => (
+              <li key={f.nome} className="flex justify-between"><span className="truncate">{f.nome}</span><span className="tabular-nums">{curto(f.valor)}</span></li>
+            ))}
+          </ul>
+        </details>
+      )}
+      <div className="mt-2 grid grid-cols-2 gap-2 border-t border-tinta/10 pt-2">
+        <div>
+          <div className="text-[11px] text-tinta/60">Entra em {nomeMes(seguinte)}</div>
+          <div className="text-base font-semibold tabular-nums text-verde">{curto(p.previstoSeguinte)}</div>
+          <div className="text-[10px] text-tinta/50">{p.seguinte.length} {quem(p.seguinte.length)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] text-tinta/60">Sobra prevista</div>
+          <div className={`text-base font-semibold tabular-nums ${sobraSeguinte < 0 ? "text-vermelho" : "text-verde"}`}>{curto(sobraSeguinte)}</div>
+          <div className="text-[10px] text-tinta/50">menos {curto(p.fixas)} de despesas fixas</div>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -23,8 +23,14 @@ function historicoNegocios() {
     const base = { forma: "pix" as const, conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, de_quem: "jo" as const, criado_por: "demo-jo", criado_em: agora, data };
     const [se, sf, sv] = studio[5 - k];
     const [ee, ef, ev] = espaco[5 - k];
+    if (k === 1) {
+      // Mês passado com o nome de cada aluno, para a previsão de entradas.
+      const alunos: [string, number][] = [["Ana", 350], ["Carla", 350], ["Bia", 280], ["Duda", 400], ["Lia", 350], ["Marta", 420], ["Paula", 350], ["Renata", 500], ["Sônia", 400], ["Tati", 350], ["Vera", 450]];
+      alunos.forEach(([nome, valor], i) =>
+        lista.push({ ...base, id: `hs-a-${i}`, tipo: "entrada", valor, descricao: `Mensalidade ${nome}`, categoria_id: null, negocio_id: "n-studio", grupo: "aluno" }));
+      lista.push({ ...base, id: "hs-o", tipo: "entrada", valor: se - 4200, descricao: "Aulas avulsas", categoria_id: null, negocio_id: "n-studio", grupo: "outra" });
+    } else lista.push({ ...base, id: `hs-e-${k}`, tipo: "entrada", valor: se, descricao: "Mensalidades", categoria_id: null, negocio_id: "n-studio", grupo: "aluno" });
     lista.push(
-      { ...base, id: `hs-e-${k}`, tipo: "entrada", valor: se, descricao: "Mensalidades", categoria_id: null, negocio_id: "n-studio", grupo: "aluno" },
       { ...base, id: `hs-f-${k}`, tipo: "saida", valor: sf, descricao: "Aluguel da sala", categoria_id: "catn-1-0", negocio_id: "n-studio", grupo: "fixa" },
       { ...base, id: `hs-v-${k}`, tipo: "saida", valor: sv, descricao: "Material", categoria_id: "catn-2-1", negocio_id: "n-studio", grupo: "variavel" },
       { ...base, id: `he-e-${k}`, tipo: "entrada", valor: ee, descricao: "Aluguel sala 1", categoria_id: null, negocio_id: "n-espaco", grupo: "aluguel" },
