@@ -1,48 +1,26 @@
 "use client";
 
-// Painel: tudo numa tela só, sem rolar. Detalhes abrem com um toque.
+// Painel: só o resumo, numa tela só. A conta linha a linha fica em Detalhes do mês (/mes).
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { Pagina } from "@/components/Navegacao";
 import { useSessao } from "@/components/Sessao";
-import { nomeMes, somarMeses, type Mes } from "@/lib/fatura";
-import { dataCurta, hoje, reais } from "@/lib/formato";
+import { BlocoOrcamento, curto, tom, useResumos } from "@/components/Orcamento";
+import { nomeMes } from "@/lib/fatura";
+import { dataCurta, hoje } from "@/lib/formato";
+import { ritmoDoMes } from "@/lib/orcamento";
 import {
   limitesDosCartoes,
-  noMes,
   pendenteAteFimDoMes,
-  resumoDoMes,
   situacaoDasContas,
   type ResumoMes,
   type SituacaoConta,
 } from "@/lib/painel";
 import { sugerirRecorrentes } from "@/lib/recorrentes";
 
-function mesAtual(): Mes {
-  const d = new Date();
-  return { ano: d.getFullYear(), mes: d.getMonth() + 1 };
-}
-
-function tom(sobra: number, base: number) {
-  if (sobra < 0) return { fundo: "bg-vermelho-claro", texto: "text-vermelho", frase: "Vai faltar" };
-  if (sobra < base * 0.1) return { fundo: "bg-amarelo-claro", texto: "text-amarelo", frase: "Apertado" };
-  return { fundo: "bg-verde-claro", texto: "text-verde", frase: "Vai sobrar" };
-}
-
-/** Valor sem centavos, para caber nos quadrinhos. */
-const curto = (v: number) => reais(Math.round(v)).replace(/,00$/, "");
-
 export default function Painel() {
-  const { dados, eu } = useSessao();
-  const dia = hoje();
-  const atual = mesAtual();
-  const seguinte = somarMeses(atual, 1);
-  const base = { ...dados, hoje: dia };
-  const rAtual = resumoDoMes(atual, base);
-  const rSeguinte = resumoDoMes(seguinte, base);
-  const [aberto, setAberto] = useState<"atual" | "seguinte">("atual");
-  const detalhe = aberto === "atual" ? rAtual : rSeguinte;
+  const { eu } = useSessao();
+  const { dia, orcamento, rAtual, rSeguinte } = useResumos();
 
   return (
     <Pagina larga>
@@ -51,14 +29,17 @@ export default function Painel() {
         <span className="text-sm text-tinta/50">hoje {dataCurta(dia)}</span>
       </div>
 
-      {/* No computador: a conta do mês à esquerda, limites e saldos à direita */}
+      {/* No computador: sobra e orçamento à esquerda, limites e saldos à direita */}
       <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
         <div>
-          <div className="mb-3 grid grid-cols-2 gap-2">
-            <BlocoSobra r={rAtual} rotulo="Este mês" ativo={aberto === "atual"} onClick={() => setAberto("atual")} />
-            <BlocoSobra r={rSeguinte} rotulo="Mês que vem" ativo={aberto === "seguinte"} onClick={() => setAberto("seguinte")} />
+          <div className="mb-1 grid grid-cols-2 gap-2">
+            <BlocoSobra r={rAtual} rotulo="Este mês" href="/mes?m=atual" />
+            <BlocoSobra r={rSeguinte} rotulo="Mês que vem" href="/mes?m=seguinte" />
           </div>
-          <Conta r={detalhe} hoje={dia} />
+          <Link href="/mes" className="mb-3 block px-1 text-right text-xs text-tinta/60 underline">
+            Ver detalhes do mês
+          </Link>
+          <BlocoOrcamento itens={orcamento} ritmo={ritmoDoMes(rAtual.mes, dia)} titulo={`Orçamento de ${nomeMes(rAtual.mes)}`} />
           <AvisoFixas />
         </div>
         <div>
@@ -69,103 +50,17 @@ export default function Painel() {
   );
 }
 
-function BlocoSobra({ r, rotulo, ativo, onClick }: { r: ResumoMes; rotulo: string; ativo: boolean; onClick: () => void }) {
+function BlocoSobra({ r, rotulo, href }: { r: ResumoMes; rotulo: string; href: string }) {
   const t = tom(r.sobra, r.recebido + r.aReceber);
   return (
-    <button
-      onClick={onClick}
-      aria-pressed={ativo}
-      className={`rounded-2xl px-3 py-2.5 text-left transition ${t.fundo} ${ativo ? "ring-2 ring-tinta/80" : "ring-1 ring-tinta/5"}`}
-    >
+    <Link href={href} className={`rounded-2xl px-3 py-2.5 text-left ring-1 ring-tinta/5 transition active:scale-[0.98] ${t.fundo}`}>
       <div className="flex items-baseline justify-between text-xs">
         <span className="font-medium">{rotulo}</span>
         <span className="capitalize text-tinta/60">{nomeMes(r.mes)}</span>
       </div>
       <div className={`mt-0.5 text-2xl font-bold tracking-tight tabular-nums ${t.texto}`}>{curto(r.sobra)}</div>
-      <div className="text-xs text-tinta/70">{t.frase}</div>
-    </button>
-  );
-}
-
-/**
- * A conta do mês escolhido: entrada prevista menos saída prevista dá a sobra.
- * "Já entrou" e "Já saiu" mostram quanto disso já aconteceu.
- */
-function Conta({ r, hoje: dia }: { r: ResumoMes; hoje: string }) {
-  const semFatura = r.itensFatura.some((f) => f.informado === null);
-  const entrada = r.recebido + r.aReceber;
-  const saida = r.gastoAVista + r.faturas + r.parcelas;
-  const fixas = r.itensCompromisso.reduce((s, c) => s + Math.max(c.devido, c.pago), 0);
-  const outros = saida - r.faturas - fixas;
-  const deFontes = r.rendas.reduce((s, x) => s + x.recebido, 0);
-  const outrasEntradas = r.recebido - deFontes;
-  const ehAtual = noMes(dia, r.mes);
-  const diaHoje = Number(dia.slice(8, 10));
-  const faturasPagas = ehAtual
-    ? r.itensFatura.filter((f) => f.cartao.dia_vencimento < diaHoje).reduce((s, f) => s + f.valor, 0)
-    : 0;
-  const saiu = r.gastoAVista + faturasPagas;
-
-  return (
-    <div className="cartao mb-3 p-0 text-sm">
-      <div className="px-3 pt-2 text-xs font-medium text-tinta/50">Conta de {nomeMes(r.mes)}</div>
-
-      <Abre rotulo="Entrada prevista" valor={entrada} cor="text-verde">
-        {r.rendas.map((x) => (
-          <Sub
-            key={x.fonte.id}
-            rotulo={`${x.fonte.nome}${x.falta > 0 ? (x.recebido > 0 ? ` · falta ${curto(x.falta)}` : " · ainda não entrou") : " · entrou"}`}
-            valor={Math.max(x.previsto, x.recebido)}
-          />
-        ))}
-        {Math.abs(outrasEntradas) >= 0.01 && <Sub rotulo="Outras entradas" valor={outrasEntradas} />}
-      </Abre>
-      <Ja rotulo="Já entrou" valor={r.recebido} />
-
-      <Abre rotulo="Saída prevista" valor={-saida}>
-        {r.itensFatura.map((f) => (
-          <Sub
-            key={f.cartao.id}
-            rotulo={`Fatura ${f.cartao.nome} · dia ${f.cartao.dia_vencimento}${f.informado === null ? " · parcial" : ""}`}
-            valor={-f.valor}
-          />
-        ))}
-        {semFatura && (
-          <p className="px-3 pb-1 pl-6 text-[11px] text-tinta/50">
-            Digite a fatura do app do banco em <Link href="/cadastros" className="underline">Ajustes</Link> para o número ficar certo.
-          </p>
-        )}
-        {r.itensCompromisso.map((c) => (
-          <Sub
-            key={c.compromisso.id}
-            rotulo={`${c.compromisso.nome}${c.falta > 0 ? "" : " · pago"}`}
-            valor={-Math.max(c.devido, c.pago)}
-          />
-        ))}
-        {Math.abs(outros) >= 0.01 && <Sub rotulo="Outros gastos já lançados" valor={-outros} />}
-        {r.itensCompromisso.length > 0 && (
-          <p className="px-3 pb-1 pl-6 text-[11px] text-tinta/50">
-            Para dar baixa numa parcela, use o <Link href="/lancamentos" className="underline">Extrato</Link>.
-          </p>
-        )}
-      </Abre>
-      <Ja rotulo="Já saiu" valor={-saiu} />
-
-      <div className="flex items-center justify-between border-t border-tinta/10 px-3 py-2 font-semibold">
-        <span>Sobra</span>
-        <span className={`tabular-nums ${r.sobra < 0 ? "text-vermelho" : "text-verde"}`}>{reais(r.sobra)}</span>
-      </div>
-    </div>
-  );
-}
-
-/** Linha pequena logo abaixo do previsto: quanto disso já aconteceu. */
-function Ja({ rotulo, valor }: { rotulo: string; valor: number }) {
-  return (
-    <div className="flex items-center justify-between px-3 pb-1.5 pl-6 text-xs text-tinta/50">
-      <span>{rotulo}</span>
-      <span className="tabular-nums">{reais(valor)}</span>
-    </div>
+      <div className="text-xs text-tinta/70">{t.frase} ›</div>
+    </Link>
   );
 }
 
@@ -178,44 +73,6 @@ function AvisoFixas() {
     <Link href="/cadastros#fixas" className="mb-3 block rounded-2xl bg-amarelo-claro px-3 py-2 text-sm">
       {n} {n > 1 ? "contas parecem se repetir" : "conta parece se repetir"} todo mês. <span className="underline">Confirmar</span>
     </Link>
-  );
-}
-
-/** No computador há espaço: os detalhes já começam abertos. */
-function useTelaGrande() {
-  const [grande, setGrande] = useState(false);
-  useEffect(() => setGrande(window.matchMedia("(min-width: 1024px)").matches), []);
-  return grande;
-}
-
-function Abre({ rotulo, valor, cor, children }: { rotulo: string; valor: number; cor?: string; children?: React.ReactNode }) {
-  const grande = useTelaGrande();
-  const linha = (
-    <>
-      <span className="flex items-center gap-1">
-        {rotulo}
-        {children && <span aria-hidden className="text-tinta/30 transition group-open:rotate-90">›</span>}
-      </span>
-      <span className={`tabular-nums ${cor ?? ""}`}>{reais(valor)}</span>
-    </>
-  );
-  if (!children) {
-    return <div className="flex items-center justify-between border-t border-tinta/5 px-3 py-1.5">{linha}</div>;
-  }
-  return (
-    <details open={grande || undefined} className="group border-t border-tinta/5">
-      <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-1.5 [&::-webkit-details-marker]:hidden">{linha}</summary>
-      <div className="pb-1">{children}</div>
-    </details>
-  );
-}
-
-function Sub({ rotulo, valor }: { rotulo: string; valor: number }) {
-  return (
-    <div className="flex items-center justify-between gap-2 px-3 py-0.5 pl-6 text-xs text-tinta/60">
-      <span>{rotulo}</span>
-      <span className="shrink-0 tabular-nums">{reais(valor)}</span>
-    </div>
   );
 }
 

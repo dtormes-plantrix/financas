@@ -4,12 +4,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Pagina } from "@/components/Navegacao";
+import { BlocoOrcamento } from "@/components/Orcamento";
 import { useSessao } from "@/components/Sessao";
 import { SeletorCategoria } from "@/components/SeletorCategoria";
 import { excluir, modoDemo, salvar } from "@/lib/dados";
 import { nomeMes, somarMeses, type Mes } from "@/lib/fatura";
 import { dataCurta, hoje, lerValor, NOME_FORMA, reais } from "@/lib/formato";
 import { NOME_GRUPO, repassesDoNegocio, resumoNegocio, type ResumoNegocio } from "@/lib/negocios";
+import { gastosPorCategoria, ritmoDoMes } from "@/lib/orcamento";
 import { noMes } from "@/lib/painel";
 import type { Forma, Grupo, Lancamento, Negocio } from "@/lib/tipos";
 
@@ -110,9 +112,21 @@ function Caixa({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
     await recarregar();
   }
 
+  const gruposDoNegocio = new Set(dados.grupos.filter((g) => g.negocio_id === negocio.id).map((g) => g.id));
+  const orcamento = gastosPorCategoria(
+    dados.categorias.filter((c) => c.grupo_id && gruposDoNegocio.has(c.grupo_id)),
+    dados.lancamentosNegocios.filter((l) => l.negocio_id === negocio.id),
+    [],
+    mes,
+    hoje(),
+    true,
+  );
+
   return (
     <>
       <Painel r={r} />
+
+      <BlocoOrcamento itens={orcamento} ritmo={ritmoDoMes(mes, hoje())} titulo={`Orçamento de ${nomeMes(mes)}`} ajustes="/cadastros#negocios" />
 
       <PassarParaCasa negocio={negocio} sugerido={Math.max(0, r.caixa)} />
 

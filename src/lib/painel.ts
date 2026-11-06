@@ -34,6 +34,7 @@ export type ResumoMes = {
   gastoAVista: number;
   faturas: number;
   parcelas: number; // o que falta pagar das parcelas mensais
+  orcamento: number; // orçamento do mês anterior que ainda falta gastar (vai cair na fatura deste mês)
   sobra: number;
   rendas: ItemRenda[];
   itensFatura: ItemFatura[];
@@ -159,6 +160,8 @@ export function resumoDoMes(
     faturasInformadas: FaturaInformada[];
     compromissos?: Compromisso[];
     hoje?: string;
+    /** Orçamento do mês anterior que ainda falta gastar. Só faz sentido no mês seguinte. */
+    reservaOrcamento?: number;
   },
 ): ResumoMes {
   const { lancamentos, cartoes, fontes, faturasInformadas, compromissos = [] } = dados;
@@ -214,7 +217,8 @@ export function resumoDoMes(
     gastoAVista,
     faturas,
     parcelas,
-    sobra: r2(recebido + aReceber - gastoAVista - faturas - parcelas),
+    orcamento: r2(dados.reservaOrcamento ?? 0),
+    sobra: r2(recebido + aReceber - gastoAVista - faturas - parcelas - (dados.reservaOrcamento ?? 0)),
     rendas,
     itensFatura,
     itensCompromisso,
@@ -304,5 +308,5 @@ export function pendenteAteFimDoMes(r: ResumoMes, hoje: string): number {
   const faturasPorVir = r.itensFatura
     .filter((f) => f.cartao.dia_vencimento >= dia)
     .reduce((s, f) => s + f.valor, 0);
-  return r2(r.aReceber - faturasPorVir - r.parcelas);
+  return r2(r.aReceber - faturasPorVir - r.parcelas - r.orcamento);
 }

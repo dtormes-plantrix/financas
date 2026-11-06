@@ -10,6 +10,7 @@ import { ParcelasDoMes } from "@/components/Parcelas";
 import { useSessao } from "@/components/Sessao";
 import { nomeMes, somarMeses, type Mes } from "@/lib/fatura";
 import { dataCurta, NOME_DONO, NOME_FORMA, reais } from "@/lib/formato";
+import { categoriaDe } from "@/lib/orcamento";
 import { noMes } from "@/lib/painel";
 import type { Dono, Forma, Lancamento, TipoLancamento } from "@/lib/tipos";
 
@@ -77,8 +78,8 @@ export default function Extrato() {
       const bate = qual === "cartao" ? l.cartao_id === id : l.conta_id === id || l.conta_destino_id === id;
       if (!bate) return false;
     }
-    if (f.categoria === "sem" && (l.categoria_id || l.tipo !== "saida")) return false;
-    if (f.categoria && f.categoria !== "sem" && l.categoria_id !== f.categoria) return false;
+    if (f.categoria === "sem" && (categoriaDe(l, dados.regras) || l.tipo !== "saida")) return false;
+    if (f.categoria && f.categoria !== "sem" && categoriaDe(l, dados.regras) !== f.categoria) return false;
     if (termo) {
       const texto = simples(
         [titulo(l), nome(l.categoria_id, dados.categorias), nome(l.fonte_id, dados.fontes), reais(l.valor), String(l.valor).replace(".", ",")]
@@ -219,7 +220,7 @@ export default function Extrato() {
               const onde = transf
                 ? `${nome(l.conta_id, dados.contas) ?? "?"} → ${nome(l.conta_destino_id, dados.contas) ?? "?"}`
                 : l.forma === "credito" ? nome(l.cartao_id, dados.cartoes) : nome(l.conta_id, dados.contas);
-              const categoria = l.descricao ? nome(l.categoria_id, dados.categorias) : undefined;
+              const categoria = l.descricao ? nome(categoriaDe(l, dados.regras), dados.categorias) : undefined;
               return (
                 <Link key={l.id} href={`/lancar?id=${l.id}`} className="flex items-center justify-between gap-3 px-4 py-3 active:bg-tinta/5">
                   <span className="min-w-0">
@@ -230,10 +231,10 @@ export default function Extrato() {
                       {l.parcelas > 1 ? ` · ${l.parcelas}x` : ""} · {NOME_DONO[l.de_quem]}
                       {categoria ? ` · ${categoria}` : ""}
                     </span>
-                    {(!l.criado_por || (l.tipo === "saida" && !l.categoria_id)) && (
+                    {(!l.criado_por || (l.tipo === "saida" && !categoriaDe(l, dados.regras))) && (
                       <span className="mt-1 flex gap-1">
                         {!l.criado_por && <span className="rounded-full bg-tinta/5 px-2 py-0.5 text-[11px] text-tinta/60">do extrato</span>}
-                        {l.tipo === "saida" && !l.categoria_id && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800">sem categoria</span>}
+                        {l.tipo === "saida" && !categoriaDe(l, dados.regras) && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800">sem categoria</span>}
                       </span>
                     )}
                   </span>

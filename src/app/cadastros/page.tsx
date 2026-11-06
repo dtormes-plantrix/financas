@@ -53,7 +53,9 @@ export default function Ajustes() {
                   ? " Sem isso, os grupos de categorias não aparecem."
                   : dados.faltaAtualizar.startsWith("0006")
                     ? " Sem isso, as categorias do Studio e do Espaço não aparecem."
-                    : " Sem isso, as contas que se repetem não salvam."}
+                    : dados.faltaAtualizar.startsWith("0007")
+                      ? " Sem isso, as contas que se repetem não salvam."
+                      : " Sem isso, os orçamentos por categoria não salvam."}
         </div>
       )}
 
@@ -77,14 +79,14 @@ export default function Ajustes() {
       </Secao>
 
       {dados.grupos.length > 0 && (
-        <Secao titulo="Grupos e categorias da casa" ajuda="Toque num grupo para renomear, criar ou apagar categorias. Apagar não apaga lançamentos, eles só ficam sem categoria.">
+        <Secao titulo="Grupos e categorias da casa" ajuda="Toque num grupo para renomear, criar ou apagar categorias, e para pôr quanto quer gastar por mês em cada uma (orçamento). Apagar não apaga lançamentos, eles só ficam sem categoria.">
           <EditorCategorias />
         </Secao>
       )}
 
       {dados.grupos.some((g) => g.negocio_id) &&
-        dados.negocios.filter((n) => n.ativo).map((n) => (
-          <Secao key={n.id} titulo={`Categorias do ${n.nome}`} ajuda="Só aparecem na seção Negócios, separadas das da casa.">
+        dados.negocios.filter((n) => n.ativo).map((n, i) => (
+          <Secao key={n.id} ancora={i === 0 ? "negocios" : undefined} titulo={`Categorias do ${n.nome}`} ajuda="Só aparecem na seção Negócios, separadas das da casa. Ponha o orçamento por mês nas despesas que quer acompanhar.">
             <EditorCategorias negocioId={n.id} />
           </Secao>
         ))}
@@ -98,9 +100,9 @@ export default function Ajustes() {
   );
 }
 
-function Secao({ titulo, ajuda, children }: { titulo: string; ajuda?: string; children: React.ReactNode }) {
+function Secao({ titulo, ajuda, ancora, children }: { titulo: string; ajuda?: string; ancora?: string; children: React.ReactNode }) {
   return (
-    <section className="mb-8">
+    <section id={ancora} className="mb-8 scroll-mt-4">
       <h2 className="text-lg font-semibold">{titulo}</h2>
       {ajuda && <p className="mb-3 text-sm text-tinta/60">{ajuda}</p>}
       <div className="space-y-3">{children}</div>
