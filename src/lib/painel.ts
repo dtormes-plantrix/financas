@@ -162,6 +162,8 @@ export function resumoDoMes(
     hoje?: string;
     /** Orçamento do mês anterior que ainda falta gastar. Só faz sentido no mês seguinte. */
     reservaOrcamento?: number;
+    /** Previsão de rendas sem valor fixo (ex.: sobra prevista do Studio), por id da fonte. */
+    previstoDasFontes?: Record<string, number>;
   },
 ): ResumoMes {
   const { lancamentos, cartoes, fontes, faturasInformadas, compromissos = [] } = dados;
@@ -171,9 +173,9 @@ export function resumoDoMes(
   const recebido = r2(doMes.filter((l) => l.tipo === "entrada").reduce((s, l) => s + Number(l.valor), 0));
 
   const rendas: ItemRenda[] = fontes
-    .filter((f) => f.ativo && f.valor_bruto)
+    .filter((f) => f.ativo && (f.valor_bruto || dados.previstoDasFontes?.[f.id]))
     .map((fonte) => {
-      const previsto = liquido(fonte);
+      const previsto = fonte.valor_bruto ? liquido(fonte) : r2(dados.previstoDasFontes?.[fonte.id] ?? 0);
       const rec = r2(
         doMes
           .filter((l) => l.tipo === "entrada" && l.fonte_id === fonte.id)

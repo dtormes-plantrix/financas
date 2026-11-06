@@ -8,6 +8,7 @@ import { useSessao } from "@/components/Sessao";
 import { somarMeses, type Mes } from "@/lib/fatura";
 import { hoje, reais } from "@/lib/formato";
 import { faltaGastar, gastosPorCategoria, type ItemOrcamento } from "@/lib/orcamento";
+import { sobraPrevista } from "@/lib/negocios";
 import { resumoDoMes } from "@/lib/painel";
 
 export function mesDeHoje(): Mes {
@@ -44,11 +45,15 @@ export function useResumos() {
   const categorias = useCategoriasDaCasa();
   const orcamento = gastosPorCategoria(categorias, dados.lancamentos, dados.regras, atual, dia, true);
   const base = { ...dados, hoje: dia };
+  // Só o Studio passa sobra para a casa por enquanto (o Espaço ainda não).
+  const queRepassam = dados.negocios.filter((n) => n.ativo && n.fonte_id && /studio/i.test(n.nome));
+  const previsto = (m: Mes) =>
+    Object.fromEntries(queRepassam.map((n) => [n.fonte_id!, sobraPrevista(n, m, dados.lancamentosNegocios)]));
   return {
     dia,
     orcamento,
-    rAtual: resumoDoMes(atual, base),
-    rSeguinte: resumoDoMes(seguinte, { ...base, reservaOrcamento: faltaGastar(orcamento) }),
+    rAtual: resumoDoMes(atual, { ...base, previstoDasFontes: previsto(atual) }),
+    rSeguinte: resumoDoMes(seguinte, { ...base, reservaOrcamento: faltaGastar(orcamento), previstoDasFontes: previsto(seguinte) }),
   };
 }
 

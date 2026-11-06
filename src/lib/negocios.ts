@@ -58,3 +58,80 @@ export function resumoNegocio(
 
   return { entradas, fixas, variaveis, resultado: r2(entradas - fixas - variaveis), passado, caixa };
 }
+
+export type Pagador = { nome: string; valor: number };
+export type PrevisaoEntradas = {
+  jaEntrou: number; // tudo que entrou no mês
+  faltam: Pagador[]; // quem pagou no mês anterior e ainda não pagou neste
+  previsto: number; // jaEntrou + o que falta
+  seguinte: Pagador[]; // quem deve pagar no mês seguinte
+  previstoSeguinte: number;
+  fixas: number; // despesas fixas que devem se repetir no mês seguinte
+};
+
+// Mensalidade de aluno e aluguel de sala se repetem todo mês. "Outra entrada" não.
+const RECORRENTE: Grupo[] = ["aluno", "aluguel"];
+
+/** Nome de quem pagou, sem "mensalidade", "aluguel" e números, para achar a mesma pessoa no outro mês. */
+export function chavePagador(descricao: string | null | undefined): string {
+  return (descricao ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/\b(mensalidade|mensal|pagamento|pix|ref\.?|referente|de|do|da)\b/g, " ")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function pagadores(ls: Lancamento[]): Map<string, Pagador> {
+  const m = new Map<string, Pagador>();
+  for (const l of ls) {
+    if (l.tipo !== "entrada" || !RECORRENTE.includes(l.grupo as Grupo)) continue;
+    const k = chavePagador(l.descricao);
+    if (!k) continue;
+    const atual = m.get(k);
+    m.set(k, { nome: l.descricao!.trim(), valor: r2((atual?.valor ?? 0) + Number(l.valor)) });
+  }
+  return m;
+}
+
+/**
+ * Previsão das entradas: quem pagou mensalidade (ou aluguel) no mês anterior
+ * deve pagar de novo. Para o mês seguinte, vale quem pagou neste mês mais quem
+ * ainda falta pagar.
+ */
+export function previsaoEntradas(n: Negocio, mes: Mes, lancamentosNegocio: Lancamento[]): PrevisaoEntradas {
+  const doNegocio = lancamentosNegocio.filter((l) => l.negocio_id === n.id);
+  const doMes = doNegocio.filter((l) => noMes(l.data, mes));
+  const anterior = { ano: mes.mes === 1 ? mes.ano - 1 : mes.ano, mes: mes.mes === 1 ? 12 : mes.mes - 1 };
+  const pagaram = pagadores(doMes);
+  const antes = pagadores(doNegocio.filter((l) => noMes(l.data, anterior)));
+  const faltam = [...antes].filter(([k]) => !pagaram.has(k)).map(([, p]) => p).sort((a, b) => b.valor - a.valor);
+  const jaEntrou = soma(doMes.filter((l) => l.tipo === "entrada"));
+  const seguinte = [...pagaram.values(), ...faltam].sort((a, b) => b.valor - a.valor);
+  return {
+    jaEntrou,
+    faltam,
+    previsto: r2(jaEntrou + faltam.reduce((s, p) => s + p.valor, 0)),
+    seguinte,
+    previstoSeguinte: r2(seguinte.reduce((s, p) => s + p.valor, 0)),
+    fixas: soma(doMes.filter((l) => l.tipo === "saida" && l.grupo === "fixa")),
+  };
+}
+
+/**
+ * Quanto o negócio deve passar para a casa no mês: entradas previstas menos
+ * as despesas (as fixas do mês anterior contam se ainda não foram lançadas).
+ * Para um mês sem nada lançado, usa a previsão feita no mês anterior.
+ */
+export function sobraPrevista(n: Negocio, mes: Mes, lancamentosNegocio: Lancamento[]): number {
+  const anterior = { ano: mes.mes === 1 ? mes.ano - 1 : mes.ano, mes: mes.mes === 1 ? 12 : mes.mes - 1 };
+  const p = previsaoEntradas(n, mes, lancamentosNegocio);
+  const pAnt = previsaoEntradas(n, anterior, lancamentosNegocio);
+  const entradas = p.jaEntrou > 0 ? p.previsto : pAnt.previstoSeguinte;
+  const variaveis = soma(
+    lancamentosNegocio.filter((l) => l.negocio_id === n.id && l.tipo === "saida" && l.grupo !== "fixa" && noMes(l.data, mes)),
+  );
+  return r2(Math.max(0, entradas - Math.max(p.fixas, pAnt.fixas) - variaveis));
+}
