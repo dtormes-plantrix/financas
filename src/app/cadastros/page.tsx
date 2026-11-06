@@ -251,7 +251,14 @@ function EditorFonte({ fonte }: { fonte: FonteRenda }) {
 function EditorConta({ conta }: { conta: Conta }) {
   const { estado, rodar } = useSalvar();
   const [cheque, setCheque] = useState(paraTexto(conta.limite_cheque_especial));
-  const [saldo, setSaldo] = useState(paraTexto(conta.saldo));
+  // O teclado de números do celular não tem o sinal de menos, então o sinal vem de um botão.
+  const [saldo, setSaldo] = useState(paraTexto(conta.saldo === null || conta.saldo === undefined ? null : Math.abs(Number(conta.saldo))));
+  const [negativo, setNegativo] = useState(Number(conta.saldo) < 0);
+  const saldoDigitado = () => {
+    const v = numeroOuNulo(saldo);
+    return v === null ? null : negativo ? -Math.abs(v) : Math.abs(v);
+  };
+  const mudou = saldoDigitado() !== (conta.saldo === null || conta.saldo === undefined ? null : Number(conta.saldo));
   return (
     <div className="cartao space-y-3">
       <div className="font-medium">
@@ -265,6 +272,22 @@ function EditorConta({ conta }: { conta: Conta }) {
         />
         <Campo rotulo="Limite do cheque especial" valor={cheque} onChange={setCheque} />
       </div>
+      <div className="flex gap-2 text-sm">
+        <button
+          type="button"
+          onClick={() => setNegativo(false)}
+          className={`flex-1 rounded-xl py-2 ring-1 ${!negativo ? "bg-tinta text-white ring-tinta" : "ring-tinta/15"}`}
+        >
+          Saldo positivo
+        </button>
+        <button
+          type="button"
+          onClick={() => setNegativo(true)}
+          className={`flex-1 rounded-xl py-2 ring-1 ${negativo ? "bg-vermelho text-white ring-vermelho" : "ring-tinta/15"}`}
+        >
+          Negativo (no cheque)
+        </button>
+      </div>
       <BotaoSalvar
         estado={estado}
         onClick={() =>
@@ -272,8 +295,8 @@ function EditorConta({ conta }: { conta: Conta }) {
             salvar("contas", {
               id: conta.id,
               limite_cheque_especial: numeroOuNulo(cheque),
-              ...(paraTexto(conta.saldo) !== saldo
-                ? { saldo: numeroOuNulo(saldo), saldo_atualizado_em: saldo.trim() ? hoje() : null }
+              ...(mudou
+                ? { saldo: saldoDigitado(), saldo_atualizado_em: saldo.trim() ? hoje() : null }
                 : {}),
             }),
           )
