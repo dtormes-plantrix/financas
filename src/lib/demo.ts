@@ -11,6 +11,30 @@ function dia(deslocamento: number): string {
 
 const agora = new Date().toISOString();
 
+/** Meses anteriores dos negócios, para o gráfico de 6 meses. */
+function historicoNegocios() {
+  const d = new Date();
+  const lista: Dados["lancamentos"] = [];
+  const studio = [[4200, 900, 380], [4550, 900, 610], [3900, 900, 1450], [4800, 900, 520], [5000, 900, 700]];
+  const espaco = [[2500, 310, 151], [2500, 295, 0], [3500, 330, 980], [2500, 305, 151], [3500, 312, 151]];
+  for (let k = 5; k >= 1; k--) {
+    const m = new Date(d.getFullYear(), d.getMonth() - k, 10);
+    const data = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-10`;
+    const base = { forma: "pix" as const, conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, de_quem: "jo" as const, criado_por: "demo-jo", criado_em: agora, data };
+    const [se, sf, sv] = studio[5 - k];
+    const [ee, ef, ev] = espaco[5 - k];
+    lista.push(
+      { ...base, id: `hs-e-${k}`, tipo: "entrada", valor: se, descricao: "Mensalidades", categoria_id: null, negocio_id: "n-studio", grupo: "aluno" },
+      { ...base, id: `hs-f-${k}`, tipo: "saida", valor: sf, descricao: "Aluguel da sala", categoria_id: "catn-1-0", negocio_id: "n-studio", grupo: "fixa" },
+      { ...base, id: `hs-v-${k}`, tipo: "saida", valor: sv, descricao: "Material", categoria_id: "catn-2-1", negocio_id: "n-studio", grupo: "variavel" },
+      { ...base, id: `he-e-${k}`, tipo: "entrada", valor: ee, descricao: "Aluguel sala 1", categoria_id: null, negocio_id: "n-espaco", grupo: "aluguel" },
+      { ...base, id: `he-f-${k}`, tipo: "saida", valor: ef, descricao: "Energia", categoria_id: "catn-4-0", negocio_id: "n-espaco", grupo: "fixa" },
+    );
+    if (ev) lista.push({ ...base, id: `he-v-${k}`, tipo: "saida", valor: ev, descricao: "Manutenção", categoria_id: null, negocio_id: "n-espaco", grupo: "variavel" });
+  }
+  return lista;
+}
+
 /** Grupos e categorias sugeridos (os mesmos da atualização 0005 do banco). */
 const GRUPOS_PADRAO: [string, string[]][] = [
   ["Casa", ["Mercado", "Contas da casa", "Condomínio", "Manutenção", "Assinaturas", "Eletro e móveis"]],
@@ -96,6 +120,7 @@ export const DEMO: Dados = {
     { id: "n5", tipo: "saida", valor: 120, data: dia(-2), descricao: "Material", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: "catn-2-1", de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-studio", grupo: "variavel" },
     { id: "n6", tipo: "entrada", valor: 2500, data: dia(-1), descricao: "Aluguel sala 1", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-espaco", grupo: "aluguel" },
     { id: "n7", tipo: "saida", valor: 310, data: dia(-2), descricao: "Energia", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: "catn-4-0", de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-espaco", grupo: "fixa" },
+    ...historicoNegocios(),
   ],
   faturasInformadas: [],
   negocios: [
