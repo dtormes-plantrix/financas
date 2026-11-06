@@ -8,7 +8,9 @@ export function reais(v: number): string {
 export function lerValor(texto: string): number {
   const limpo = texto.replace(/[^\d,.-]/g, "");
   if (!limpo) return 0;
-  const normalizado = limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo;
+  // "15.000" (sem vírgula) é quinze mil, não quinze: ponto seguido de 3 dígitos é milhar.
+  const soMilhar = !limpo.includes(",") && /^-?\d{1,3}(\.\d{3})+$/.test(limpo);
+  const normalizado = limpo.includes(",") || soMilhar ? limpo.replace(/\./g, "").replace(",", ".") : limpo;
   const v = Number(normalizado);
   return Number.isFinite(v) ? Math.round(v * 100) / 100 : 0;
 }
