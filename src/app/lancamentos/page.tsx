@@ -41,6 +41,18 @@ function filtrosIniciais(): Filtros {
   };
   try {
     const salvo = sessionStorage.getItem(CHAVE);
+    // Vindo de um quadro do Início (?onde=, ?categoria=, ?mes=): abre só aquilo, sem filtros antigos.
+    const url = new URLSearchParams(window.location.search);
+    if (url.has("onde") || url.has("categoria")) {
+      const [ano, mes] = (url.get("mes") || "").split("-").map(Number);
+      return {
+        ...padrao,
+        ...(ano && mes ? { mes: { ano, mes } } : {}),
+        todosOsMeses: url.get("todos") === "1",
+        onde: url.get("onde") || "",
+        categoria: url.get("categoria") || "",
+      };
+    }
     if (salvo) return { ...padrao, ...JSON.parse(salvo) };
   } catch {}
   return padrao;

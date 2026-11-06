@@ -238,7 +238,7 @@ function PainelNegocio({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
 
           <Previsao p={previsao} mes={mes} espaco={/espa/i.test(negocio.nome)} />
           <EntrouSaiu r={r} />
-          <BlocoOrcamento itens={orcamento} ritmo={ritmoDoMes(mes, hoje())} titulo={`Orçamento de ${nomeMes(mes)}`} ajustes="/cadastros#negocios" />
+          <BlocoOrcamento itens={orcamento} ritmo={ritmoDoMes(mes, hoje())} mes={mes} titulo={`Orçamento de ${nomeMes(mes)}`} ajustes="/cadastros#negocios" />
         </div>
         <div>
           <Grafico historico={historico} />
