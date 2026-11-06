@@ -50,7 +50,16 @@ export type FonteRenda = {
 
 export type GrupoCategoria = { id: string; nome: string; ordem: number; negocio_id?: string | null };
 
-export type Categoria = { id: string; nome: string; grupo_id?: string | null; ordem?: number };
+export type Categoria = {
+  id: string;
+  nome: string;
+  grupo_id?: string | null;
+  ordem?: number;
+  orcamento?: number | null; // quanto se quer gastar por mês (vazio = sem orçamento)
+};
+
+/** Nome da loja que leva a uma categoria (ex.: "comper" -> Mercado). */
+export type RegraCategoria = { id: string; busca: string; categoria_id: string };
 
 export type Lancamento = {
   id: string;

@@ -4,7 +4,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DEMO } from "./demo";
 import type {
-  Cartao, Categoria, Compromisso, Conta, FaturaInformada, FonteRenda, Lancamento, Membro, Negocio, GrupoCategoria,
+  Cartao, Categoria, Compromisso, Conta, FaturaInformada, FonteRenda, Lancamento, Membro, Negocio, GrupoCategoria, RegraCategoria,
 } from "./tipos";
 
 export type Dados = {
@@ -14,6 +14,8 @@ export type Dados = {
   fontes: FonteRenda[];
   categorias: Categoria[];
   grupos: GrupoCategoria[];
+  /** Nome da loja -> categoria, para lançamentos que chegam sem categoria. */
+  regras: RegraCategoria[];
   lancamentos: Lancamento[];
   faturasInformadas: FaturaInformada[];
   compromissos: Compromisso[];
@@ -24,7 +26,7 @@ export type Dados = {
   faltaAtualizar?: string | null;
 };
 
-type Tabela = "contas" | "cartoes" | "fontes_renda" | "lancamentos" | "faturas_informadas" | "compromissos" | "negocios" | "categorias" | "grupos";
+type Tabela = "contas" | "cartoes" | "fontes_renda" | "lancamentos" | "faturas_informadas" | "compromissos" | "negocios" | "categorias" | "grupos" | "regras_categoria";
 
 // Tira espaços e aspas que às vezes vêm junto ao colar na Vercel.
 const limpar = (v: string | undefined) => (v ?? "").trim().replace(/^["']|["']$/g, "").trim();
@@ -54,7 +56,7 @@ export function supabase(): SupabaseClient {
 
 // ---------- modo demonstração ----------
 
-const CHAVE_DEMO = "financas-demo-v6";
+const CHAVE_DEMO = "financas-demo-v7";
 
 function lerDemo(): Dados {
   try {
@@ -80,6 +82,7 @@ const CAMPO_DEMO: Record<Tabela, keyof Dados> = {
   negocios: "negocios",
   categorias: "categorias",
   grupos: "grupos",
+  regras_categoria: "regras",
 };
 
 /** Separa os lançamentos da casa dos lançamentos dos negócios. */
@@ -88,6 +91,7 @@ function separar(d: Dados): Dados {
   return {
     ...d,
     negocios: d.negocios ?? [],
+    regras: d.regras ?? [],
     grupos: [...(d.grupos ?? [])].sort((a, b) => a.ordem - b.ordem),
     categorias: [...d.categorias].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)),
     lancamentos: todos.filter((l) => !l.negocio_id),
@@ -100,7 +104,7 @@ function separar(d: Dados): Dados {
 export async function carregarTudo(): Promise<Dados> {
   if (modoDemo) return separar(lerDemo());
   const s = supabase();
-  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias, negocios, grupos, gruposNegocio, recorrentes] = await Promise.all([
+  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias, negocios, grupos, gruposNegocio, recorrentes, regras] = await Promise.all([
     s.from("membros").select("*"),
     s.from("contas").select("*").order("nome"),
     s.from("cartoes").select("*").order("nome"),
@@ -115,6 +119,7 @@ export async function carregarTudo(): Promise<Dados> {
     s.from("grupos").select("*").order("ordem").order("nome"),
     s.from("grupos").select("negocio_id").limit(1),
     s.from("compromissos").select("busca").limit(1),
+    s.from("regras_categoria").select("*"),
   ]);
   // Se uma atualização do banco ainda não rodou, o app continua funcionando e avisa em Ajustes.
   const faltaAtualizar = compromissos.error
@@ -129,7 +134,9 @@ export async function carregarTudo(): Promise<Dados> {
             ? "0006_categorias_dos_negocios.sql"
             : recorrentes.error
               ? "0007_contas_que_se_repetem.sql"
-              : null;
+              : regras.error
+                ? "0008_orcamento_por_categoria.sql"
+                : null;
   const erro = [membros, contas, cartoes, fontes, categorias, lancamentos, faturas].find((r) => r.error);
   if (erro?.error) throw new Error(erro.error.message);
   return separar({
@@ -137,7 +144,7 @@ export async function carregarTudo(): Promise<Dados> {
     contas: contas.data as Conta[],
     cartoes: cartoes.data as Cartao[],
     fontes: fontes.data as FonteRenda[],
-    categorias: categorias.data as Categoria[],
+    categorias: (categorias.data as Categoria[]).map((c) => ({ ...c, orcamento: c.orcamento == null ? null : Number(c.orcamento) })),
     lancamentos: (lancamentos.data as Lancamento[]).map((l) => ({ ...l, valor: Number(l.valor) })),
     faturasInformadas: faturas.data as FaturaInformada[],
     faltaAtualizar,
@@ -148,6 +155,7 @@ export async function carregarTudo(): Promise<Dados> {
     })),
     negocios: (negocios.data ?? []) as Negocio[],
     grupos: (grupos.data ?? []) as GrupoCategoria[],
+    regras: (regras.data ?? []) as RegraCategoria[],
     lancamentosNegocios: [],
   });
 }

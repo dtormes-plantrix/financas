@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { useSessao } from "@/components/Sessao";
 import { excluir, salvar } from "@/lib/dados";
+import { lerValor, reais } from "@/lib/formato";
 import type { Categoria, GrupoCategoria } from "@/lib/tipos";
 
 export function EditorCategorias({ negocioId = null }: { negocioId?: string | null }) {
@@ -76,10 +77,18 @@ function Grupo({ grupo, categorias, rodar }: { grupo: GrupoCategoria; categorias
       </summary>
       <div className="space-y-2 border-t border-tinta/5 px-4 pb-4 pt-3">
         <Nome rotulo="Nome do grupo" valor={grupo.nome} aoSalvar={(nome) => rodar(() => salvar("grupos", { id: grupo.id, nome }))} />
-        <div className="pt-1 text-xs font-medium text-tinta/50">Categorias</div>
+        <div className="flex justify-between pt-1 text-xs font-medium text-tinta/50">
+          <span>Categorias</span>
+          <span className="pr-12">Orçamento por mês</span>
+        </div>
         {categorias.map((c) => (
           <div key={c.id} className="flex items-center gap-2">
             <Nome rotulo={`Categoria ${c.nome}`} valor={c.nome} aoSalvar={(nome) => rodar(() => salvar("categorias", { id: c.id, nome }))} />
+            <Orcamento
+              rotulo={`Orçamento por mês de ${c.nome}`}
+              valor={c.orcamento ?? null}
+              aoSalvar={(orcamento) => rodar(() => salvar("categorias", { id: c.id, orcamento }))}
+            />
             <button
               aria-label={`Apagar ${c.nome}`}
               className="shrink-0 rounded-lg px-3 py-2 text-vermelho active:bg-vermelho-claro"
@@ -96,6 +105,29 @@ function Grupo({ grupo, categorias, rodar }: { grupo: GrupoCategoria; categorias
         <button className="pt-1 text-sm text-vermelho" onClick={apagarGrupo}>Apagar grupo</button>
       </div>
     </details>
+  );
+}
+
+/** Valor por mês da categoria. Vazio = sem orçamento. Salva ao sair do campo. */
+function Orcamento({ rotulo, valor, aoSalvar }: { rotulo: string; valor: number | null; aoSalvar: (v: number | null) => void }) {
+  const inicial = valor ? reais(Number(valor)).replace(/^R\$\s?/, "") : "";
+  const [texto, setTexto] = useState(inicial);
+  function salvarSeMudou() {
+    const v = lerValor(texto) || null;
+    if (v !== (valor ? Number(valor) : null)) aoSalvar(v);
+    setTexto(v ? reais(v).replace(/^R\$\s?/, "") : "");
+  }
+  return (
+    <input
+      aria-label={rotulo}
+      inputMode="decimal"
+      placeholder="R$ —"
+      className="campo w-28 shrink-0 py-2 text-right tabular-nums"
+      value={texto}
+      onChange={(e) => setTexto(e.target.value)}
+      onBlur={salvarSeMudou}
+      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+    />
   );
 }
 

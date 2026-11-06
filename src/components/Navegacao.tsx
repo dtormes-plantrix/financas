@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const itens = [
+const itens: { href: string; rotulo: string; icone: string; soComputador?: boolean }[] = [
   { href: "/", rotulo: "Início", icone: "M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" },
+  { href: "/mes", rotulo: "Detalhes do mês", soComputador: true, icone: "M4 20V10M10 20V4M16 20v-7M22 20H2" },
   { href: "/lancamentos", rotulo: "Extrato", icone: "M4 6h16M4 12h16M4 18h10" },
   { href: "/negocios", rotulo: "Negócios", icone: "M4 8h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM9 8V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3M4 13h16" },
   { href: "/cadastros", rotulo: "Ajustes", icone: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" },
@@ -12,12 +13,14 @@ const itens = [
 
 export function Navegacao() {
   const caminho = usePathname();
+  // No celular, Detalhes do mês abre tocando nos quadrinhos do Início.
+  const doCelular = itens.filter((i) => !i.soComputador);
   return (
     <>
       {/* Celular: barra embaixo, com o botão de lançar no meio */}
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-tinta/10 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-md items-center justify-around px-2">
-          {itens.slice(0, 2).map((i) => <Item key={i.href} {...i} ativo={caminho === i.href} />)}
+          {doCelular.slice(0, 2).map((i) => <Item key={i.href} {...i} ativo={caminho === i.href} />)}
           <Link
             href="/lancar"
             aria-label="Lançar"
@@ -27,7 +30,7 @@ export function Navegacao() {
               <path d="M12 5v14M5 12h14" />
             </svg>
           </Link>
-          {itens.slice(2).map((i) => <Item key={i.href} {...i} ativo={caminho === i.href} />)}
+          {doCelular.slice(2).map((i) => <Item key={i.href} {...i} ativo={caminho === i.href} />)}
         </div>
       </nav>
 

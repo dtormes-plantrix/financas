@@ -9,6 +9,7 @@ import { combinar, doEndereco, type Leitura } from "@/lib/comprovante";
 import { excluir, modoDemo, salvar, supabase } from "@/lib/dados";
 import { nomeMes, parcelasDaCompra } from "@/lib/fatura";
 import { hoje, lerValor, NOME_DONO, NOME_FORMA, reais } from "@/lib/formato";
+import { buscaDaDescricao, normalizar, regraPara } from "@/lib/orcamento";
 import type { Dono, Forma, Lancamento, TipoLancamento } from "@/lib/tipos";
 
 const FORMAS: Forma[] = ["pix", "credito", "debito", "dinheiro"];
@@ -174,7 +175,7 @@ function Lancar() {
       setParcelas(editando.parcelas);
       setFonteId(editando.fonte_id);
       setDescricao(editando.descricao ?? "");
-      setCategoriaId(editando.categoria_id ?? "");
+      setCategoriaId(editando.categoria_id ?? (editando.tipo === "saida" ? regraPara(editando.descricao, dados.regras)?.categoria_id : undefined) ?? "");
       setData(editando.data);
       setDeQuem(editando.de_quem);
       setMaisDetalhes(true);
@@ -244,6 +245,7 @@ function Lancar() {
     };
     try {
       await salvar("lancamentos", registro);
+      await aprenderCategoria(registro);
       gravarUltimo(eu.apelido, { forma: formaFinal, cartao_id: cartaoId, conta_id: contaId });
       if (doComprovante && finalLido && formaFinal === "credito" && cartaoId) {
         try {
@@ -268,6 +270,24 @@ function Lancar() {
       setAviso(`Não salvou: ${e instanceof Error ? e.message : e}`);
     } finally {
       setSalvando(false);
+    }
+  }
+
+  /**
+   * Quando a pessoa escolhe a categoria de uma compra que o app não reconheceu,
+   * guarda o nome da loja para as próximas compras iguais entrarem sozinhas.
+   */
+  async function aprenderCategoria(l: Partial<Lancamento>) {
+    if (l.tipo !== "saida" || !l.categoria_id || !l.descricao) return;
+    const atual = regraPara(l.descricao, dados.regras);
+    if (atual?.categoria_id === l.categoria_id) return;
+    const busca = buscaDaDescricao(l.descricao);
+    if (busca.length < 3) return;
+    try {
+      const existente = dados.regras.find((r) => normalizar(r.busca) === busca);
+      await salvar("regras_categoria", existente ? { id: existente.id, categoria_id: l.categoria_id } : { busca, categoria_id: l.categoria_id });
+    } catch {
+      // sem a atualização 0008 do banco, só não aprende
     }
   }
 
@@ -433,7 +453,11 @@ function Lancar() {
         <div className="mb-5 space-y-4">
           <div>
             <label className="rotulo" htmlFor="descricao">Descrição</label>
-            <input id="descricao" className="campo" placeholder="Ex.: mercado, posto, farmácia" value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+            <input id="descricao" className="campo" placeholder="Ex.: mercado, posto, farmácia" value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              // loja conhecida (ex.: Comper): já escolhe a categoria
+              onBlur={() => !categoriaId && tipo === "saida" && setCategoriaId(regraPara(descricao, dados.regras)?.categoria_id ?? "")}
+            />
           </div>
           <div>
             <label className="rotulo" htmlFor="categoria">Categoria (opcional)</label>
