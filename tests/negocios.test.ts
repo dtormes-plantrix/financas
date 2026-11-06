@@ -31,3 +31,20 @@ describe("previsão de entradas do negócio", () => {
     expect(p.fixas).toBe(900);
   });
 });
+
+import { sobraPrevista } from "../src/lib/negocios";
+describe("sobra prevista para a casa", () => {
+  const ls = [
+    l("2026-10-05", 350, "Mensalidade Ana"),
+    l("2026-10-06", 400, "Mensalidade Bia"),
+    l("2026-10-08", 300, "Aluguel da sala", "fixa", "saida"),
+    l("2026-11-03", 350, "Ana"),
+    l("2026-11-05", 50, "Material", "variavel", "saida"),
+  ];
+  it("no mês atual conta quem ainda deve pagar e a fixa que ainda não foi lançada", () => {
+    expect(sobraPrevista(studio, { ano: 2026, mes: 11 }, ls)).toBe(750 - 300 - 50);
+  });
+  it("no mês seguinte usa a previsão do mês atual", () => {
+    expect(sobraPrevista(studio, { ano: 2026, mes: 12 }, ls)).toBe(750);
+  });
+});

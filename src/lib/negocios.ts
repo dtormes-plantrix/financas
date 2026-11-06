@@ -119,3 +119,19 @@ export function previsaoEntradas(n: Negocio, mes: Mes, lancamentosNegocio: Lanca
     fixas: soma(doMes.filter((l) => l.tipo === "saida" && l.grupo === "fixa")),
   };
 }
+
+/**
+ * Quanto o negócio deve passar para a casa no mês: entradas previstas menos
+ * as despesas (as fixas do mês anterior contam se ainda não foram lançadas).
+ * Para um mês sem nada lançado, usa a previsão feita no mês anterior.
+ */
+export function sobraPrevista(n: Negocio, mes: Mes, lancamentosNegocio: Lancamento[]): number {
+  const anterior = { ano: mes.mes === 1 ? mes.ano - 1 : mes.ano, mes: mes.mes === 1 ? 12 : mes.mes - 1 };
+  const p = previsaoEntradas(n, mes, lancamentosNegocio);
+  const pAnt = previsaoEntradas(n, anterior, lancamentosNegocio);
+  const entradas = p.jaEntrou > 0 ? p.previsto : pAnt.previstoSeguinte;
+  const variaveis = soma(
+    lancamentosNegocio.filter((l) => l.negocio_id === n.id && l.tipo === "saida" && l.grupo !== "fixa" && noMes(l.data, mes)),
+  );
+  return r2(Math.max(0, entradas - Math.max(p.fixas, pAnt.fixas) - variaveis));
+}
