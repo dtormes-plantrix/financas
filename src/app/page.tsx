@@ -39,7 +39,7 @@ export default function Painel() {
           <Link href="/mes" className="mb-3 block px-1 text-right text-xs text-tinta/60 underline">
             Ver detalhes do mês
           </Link>
-          <BlocoOrcamento itens={orcamento} ritmo={ritmoDoMes(rAtual.mes, dia)} titulo={`Orçamento de ${nomeMes(rAtual.mes)}`} />
+          <BlocoOrcamento itens={orcamento} ritmo={ritmoDoMes(rAtual.mes, dia)} mes={rAtual.mes} titulo={`Orçamento de ${nomeMes(rAtual.mes)}`} />
           <AvisoFixas />
         </div>
         <div>
@@ -104,12 +104,12 @@ function Limites({ rAtual, rSeguinte, hoje: dia }: { rAtual: ResumoMes; rSeguint
       </div>
       <div className="mb-3 grid grid-cols-2 gap-2">
         {cartoes.map((l) => (
-          <div key={l.cartao.id} className="cartao px-2.5 py-2">
+          <Link key={l.cartao.id} href={`/lancamentos?onde=cartao:${l.cartao.id}&todos=1`} className="cartao block px-2.5 py-2">
             <div className="truncate text-xs text-tinta/60">{l.cartao.nome.replace(" Visa Gold", "")}</div>
             <div className={`text-sm font-semibold tabular-nums ${l.livre < 0 ? "text-vermelho" : ""}`}>{curto(l.livre)} livre</div>
             <Barra usado={l.usado} total={l.limite} />
             <div className="mt-0.5 text-[10px] text-tinta/50">usando {curto(l.usado)} de {curto(l.limite)}</div>
-          </div>
+          </Link>
         ))}
         {contas.filter((c) => c.conta.limite_cheque_especial).map((c) => <ChequeEspecial key={c.conta.id} c={c} />)}
       </div>
@@ -134,7 +134,8 @@ function Limites({ rAtual, rSeguinte, hoje: dia }: { rAtual: ResumoMes; rSeguint
 /** Quadrinho do cheque especial, ao lado dos cartões. Fica vermelho quando está em uso. */
 function ChequeEspecial({ c }: { c: SituacaoConta }) {
   const limite = Number(c.conta.limite_cheque_especial);
-  const nome = `Cheque ${c.conta.nome.replace(/^Conta\s+/i, "")}`;
+  const nomeConta = c.conta.nome.replace(/^Conta\s+/i, "");
+  const nome = `Cheque ${nomeConta}`;
   if (c.saldo === null) {
     return (
       <Link href="/cadastros" className="cartao px-2.5 py-2 text-xs text-tinta/60">
@@ -146,16 +147,16 @@ function ChequeEspecial({ c }: { c: SituacaoConta }) {
   const emUso = c.chequeEmUso > 0;
   const p = limite ? Math.min(100, (c.chequeEmUso / limite) * 100) : 0;
   return (
-    <div className={`rounded-2xl px-2.5 py-2 shadow-sm ring-1 ${emUso ? "bg-vermelho text-white ring-vermelho" : "bg-white ring-tinta/5"}`}>
-      <div className={`truncate text-xs ${emUso ? "text-white/85" : "text-tinta/60"}`}>{nome}</div>
-      <div className="text-sm font-semibold tabular-nums">{curto(c.chequeLivre ?? 0)} livre</div>
+    <Link href={`/lancamentos?onde=conta:${c.conta.id}`} className={`block rounded-2xl px-2.5 py-2 shadow-sm ring-1 ${emUso ? "bg-vermelho text-white ring-vermelho" : "bg-white ring-tinta/5"}`}>
+      <div className={`truncate text-xs ${emUso ? "text-white/85" : "text-tinta/60"}`}>{emUso ? nome : `Saldo ${nomeConta}`}</div>
+      <div className="text-sm font-semibold tabular-nums">{emUso ? `${curto(c.chequeLivre ?? 0)} livre` : curto(c.saldo)}</div>
       <div className={`mt-1 h-1.5 overflow-hidden rounded-full ${emUso ? "bg-white/30" : "bg-tinta/10"}`}>
         <div className="h-full rounded-full bg-white" style={{ width: `${p}%` }} />
       </div>
       <div className={`mt-0.5 text-[10px] ${emUso ? "text-white/85" : "text-tinta/50"}`}>
-        {emUso ? `usando ${curto(c.chequeEmUso)} de ${curto(limite)}` : "sem uso"}
+        {emUso ? `usando ${curto(c.chequeEmUso)} de ${curto(limite)}` : `cheque sem uso · ${curto(limite)} livre`}
       </div>
-    </div>
+    </Link>
   );
 }
 
