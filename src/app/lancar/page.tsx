@@ -10,6 +10,7 @@ import { excluir, modoDemo, salvar, supabase } from "@/lib/dados";
 import { nomeMes, parcelasDaCompra } from "@/lib/fatura";
 import { hoje, lerValor, NOME_DONO, NOME_FORMA, reais } from "@/lib/formato";
 import { buscaDaDescricao, normalizar, regraPara } from "@/lib/orcamento";
+import { descricaoAmbigua, sugerirCategorias } from "@/lib/sugestao";
 import type { Dono, Forma, Lancamento, TipoLancamento } from "@/lib/tipos";
 
 const FORMAS: Forma[] = ["pix", "credito", "debito", "dinheiro"];
@@ -102,6 +103,12 @@ function Lancar() {
   const [doComprovante, setDoComprovante] = useState(false);
   const [finalLido, setFinalLido] = useState<string | null>(null);
   const campoValor = useRef<HTMLInputElement>(null);
+  // categorias sugeridas pela descrição (ex.: "lanche" -> Bares e restaurantes ou Delivery)
+  const sugestoes = useMemo(() => {
+    if (tipo !== "saida") return [];
+    const daCasa = dados.categorias.filter((c) => !dados.grupos.find((g) => g.id === c.grupo_id)?.negocio_id);
+    return sugerirCategorias(descricao, daCasa, dados.regras, dados.lancamentos);
+  }, [tipo, descricao, dados]);
   const campoArquivo = useRef<HTMLInputElement>(null);
 
   /** Preenche a tela com o que a IA leu do comprovante, para a pessoa conferir. */
@@ -279,6 +286,8 @@ function Lancar() {
    */
   async function aprenderCategoria(l: Partial<Lancamento>) {
     if (l.tipo !== "saida" || !l.categoria_id || !l.descricao) return;
+    // palavra genérica (ex.: "lanche") não vira regra: o app aprende pelo histórico
+    if (descricaoAmbigua(l.descricao)) return;
     const atual = regraPara(l.descricao, dados.regras);
     if (atual?.categoria_id === l.categoria_id) return;
     const busca = buscaDaDescricao(l.descricao);
@@ -455,9 +464,24 @@ function Lancar() {
             <label className="rotulo" htmlFor="descricao">Descrição</label>
             <input id="descricao" className="campo" placeholder="Ex.: mercado, posto, farmácia" value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
-              // loja conhecida (ex.: Comper): já escolhe a categoria
-              onBlur={() => !categoriaId && tipo === "saida" && setCategoriaId(regraPara(descricao, dados.regras)?.categoria_id ?? "")}
+              // loja conhecida (ex.: Comper) ou só uma sugestão: já escolhe a categoria
+              onBlur={() => {
+                if (categoriaId || tipo !== "saida") return;
+                const regra = descricaoAmbigua(descricao) ? undefined : regraPara(descricao, dados.regras)?.categoria_id;
+                setCategoriaId(regra ?? (sugestoes.length === 1 ? sugestoes[0] : ""));
+              }}
             />
+            {sugestoes.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="text-xs text-tinta/60">Sugestão:</span>
+                {sugestoes.map((id) => (
+                  <button key={id} type="button" onClick={() => setCategoriaId(id)}
+                    className={`chip ${categoriaId === id ? "chip-ativo" : ""}`}>
+                    {dados.categorias.find((c) => c.id === id)?.nome}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <label className="rotulo" htmlFor="categoria">Categoria (opcional)</label>
