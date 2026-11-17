@@ -5,8 +5,9 @@
 // sai do caixa do negócio como "passado para a casa".
 
 import type { Mes } from "./fatura";
-import { noMes } from "./painel";
-import type { Grupo, Lancamento, Negocio } from "./tipos";
+import { liquido, noMes } from "./painel";
+import { normalizar } from "./orcamento";
+import type { FonteRenda, Grupo, Lancamento, Negocio } from "./tipos";
 
 export const NOME_GRUPO: Record<Grupo, string> = {
   aluno: "Aluno",
@@ -134,4 +135,58 @@ export function sobraPrevista(n: Negocio, mes: Mes, lancamentosNegocio: Lancamen
     lancamentosNegocio.filter((l) => l.negocio_id === n.id && l.tipo === "saida" && l.grupo !== "fixa" && noMes(l.data, mes)),
   );
   return r2(Math.max(0, entradas - Math.max(p.fixas, pAnt.fixas) - variaveis));
+}
+
+// ───────── Negócio só de marcação (Plantrix) ─────────
+//
+// Não tem caixa próprio: a renda cai na conta da casa (fonte ligada ao
+// negócio) e os gastos saem dos cartões da casa, marcados como da empresa.
+
+export type ResumoMarcacao = {
+  bruto: number; // faturamento do mês (nota)
+  impostoNotas: number; // % retido na nota
+  descontos: number; // INSS e outros valores fixos retidos
+  liquidoPrevisto: number; // o que deve cair na conta
+  entrou: number; // o que já caiu na conta no mês
+  receita: number; // entrou ou, se ainda não entrou, o previsto
+  previsto: boolean; // true = receita é previsão
+  gastos: number;
+  lancamentosGastos: Lancamento[];
+  resultado: number; // receita − gastos
+};
+
+/** Gastos e entradas da casa ligados ao negócio, mês a mês. */
+export function resumoMarcacao(
+  n: Negocio,
+  fonte: FonteRenda | undefined,
+  mes: Mes,
+  lancamentosCasa: Lancamento[],
+  hoje: string,
+): ResumoMarcacao {
+  const doMes = lancamentosCasa.filter((l) => noMes(l.data, mes));
+  const entrou = soma(
+    doMes.filter((l) => l.tipo === "entrada" && ((n.fonte_id && l.fonte_id === n.fonte_id) || l.marcado_negocio_id === n.id)),
+  );
+  const lancamentosGastos = doMes
+    .filter((l) => l.tipo === "saida" && l.marcado_negocio_id === n.id)
+    .sort((a, b) => (a.data < b.data ? 1 : -1));
+  const gastos = soma(lancamentosGastos);
+  const bruto = Number(fonte?.valor_bruto) || 0;
+  const impostoNotas = r2(bruto * ((Number(fonte?.percentual_imposto) || 0) / 100));
+  const descontos = r2(Number(fonte?.descontos_fixos) || 0);
+  const liquidoPrevisto = fonte && bruto ? liquido(fonte) : 0;
+  // mês que já passou e não teve entrada: não inventa receita
+  const chaveMes = `${mes.ano}-${String(mes.mes).padStart(2, "0")}`;
+  const previsto = entrou === 0 && chaveMes >= hoje.slice(0, 7) && liquidoPrevisto > 0;
+  const receita = previsto ? liquidoPrevisto : entrou;
+  return { bruto, impostoNotas, descontos, liquidoPrevisto, entrou, receita, previsto, gastos, lancamentosGastos, resultado: r2(receita - gastos) };
+}
+
+/** Negócio de marcação cuja palavra aparece na descrição (ex.: "Ebn Adobe" -> Plantrix). */
+export function marcacaoPorPalavra(descricao: string | null | undefined, negocios: Negocio[]): Negocio | undefined {
+  const d = normalizar(descricao);
+  if (!d || /youtub/.test(d)) return undefined;
+  return negocios.find(
+    (n) => n.so_marcacao && n.ativo && (n.palavras_marcacao ?? []).some((p) => p && d.includes(normalizar(p))),
+  );
 }

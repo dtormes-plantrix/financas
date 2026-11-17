@@ -94,7 +94,7 @@ export default function Extrato() {
     if (f.categoria && f.categoria !== "sem" && categoriaDe(l, dados.regras) !== f.categoria) return false;
     if (termo) {
       const texto = simples(
-        [titulo(l), nome(l.categoria_id, dados.categorias), nome(l.fonte_id, dados.fontes), reais(l.valor), String(l.valor).replace(".", ",")]
+        [titulo(l), nome(l.categoria_id, dados.categorias), nome(l.fonte_id, dados.fontes), nome(l.marcado_negocio_id, dados.negocios), reais(l.valor), String(l.valor).replace(".", ",")]
           .filter(Boolean)
           .join(" "),
       );
@@ -243,10 +243,11 @@ export default function Extrato() {
                       {l.parcelas > 1 ? ` · ${l.parcelas}x` : ""} · {NOME_DONO[l.de_quem]}
                       {categoria ? ` · ${categoria}` : ""}
                     </span>
-                    {(!l.criado_por || (l.tipo === "saida" && !categoriaDe(l, dados.regras))) && (
+                    {(!l.criado_por || l.marcado_negocio_id || (l.tipo === "saida" && !categoriaDe(l, dados.regras))) && (
                       <span className="mt-1 flex gap-1">
+                        {l.marcado_negocio_id && <span className="rounded-full bg-verde-claro px-2 py-0.5 text-[11px] text-verde">{nome(l.marcado_negocio_id, dados.negocios) ?? "empresa"}</span>}
                         {!l.criado_por && <span className="rounded-full bg-tinta/5 px-2 py-0.5 text-[11px] text-tinta/60">do extrato</span>}
-                        {l.tipo === "saida" && !categoriaDe(l, dados.regras) && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800">sem categoria</span>}
+                        {l.tipo === "saida" && !l.marcado_negocio_id && !categoriaDe(l, dados.regras) && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800">sem categoria</span>}
                       </span>
                     )}
                   </span>

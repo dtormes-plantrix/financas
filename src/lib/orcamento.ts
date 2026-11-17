@@ -78,7 +78,7 @@ export function situacao(gasto: number, orcamento: number, esperado: number): Si
 
 /**
  * Gastos do mês por categoria. `soComOrcamento` deixa só as que têm valor por mês.
- * Saídas apenas; transferências e entradas não contam.
+ * Saídas apenas; transferências, entradas e gastos marcados como da empresa não contam.
  */
 export function gastosPorCategoria(
   categorias: Categoria[],
@@ -92,6 +92,8 @@ export function gastosPorCategoria(
   const porCategoria = new Map<string, Lancamento[]>();
   for (const l of lancamentos) {
     if (l.tipo !== "saida" || !noMes(l.data, mes)) continue;
+    // gasto da empresa (ex.: Plantrix) não come o orçamento da casa
+    if (l.marcado_negocio_id) continue;
     const id = categoriaDe(l, regras);
     if (!id) continue;
     porCategoria.set(id, [...(porCategoria.get(id) ?? []), l]);
