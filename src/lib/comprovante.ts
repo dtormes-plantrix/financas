@@ -102,16 +102,38 @@ export async function lerComprovante(chaveApi: string, base64: string, tipoArqui
     tipoArquivo === "application/pdf"
       ? { type: "document", source: { type: "base64", media_type: tipoArquivo, data: base64 } }
       : { type: "image", source: { type: "base64", media_type: tipoArquivo, data: base64 } };
+  return pedirLeitura(chaveApi, instrucoes(c), [bloco, { type: "text", text: "Leia este comprovante." }]);
+}
+
+/** Instruções para um recado de texto (ex.: "mercado 85 cartão MP"), vindo do WhatsApp. */
+export function instrucoesTexto(c: Contexto): string {
+  return [
+    instrucoes(c).replace("Chame a ferramenta registrar_lancamento uma vez. Se não for um comprovante, chame com valor 0.", ""),
+    "Agora você recebe um recado curto escrito pelo casal no WhatsApp, em vez de um comprovante.",
+    "- Se o recado não disser a forma, use pix. 'cartão' sem dizer débito é credito. 'MP' é Mercado Pago, 'nu' é Nubank.",
+    "- Se não disser a data, use hoje. 'ontem' é o dia anterior a hoje.",
+    "- 'recebi', 'entrou', 'caiu' indicam entrada. 'paguei', 'gastei', 'comprei' ou só loja e valor indicam saida.",
+    "- 'em 3x' ou '3 vezes' são parcelas no crédito; o valor é o total da compra, salvo se disser 'parcela de'.",
+    "Chame a ferramenta registrar_lancamento uma vez. Se o recado for uma pergunta ou conversa, sem um valor gasto ou recebido, chame com valor 0.",
+  ].join("\n");
+}
+
+/** Pede para a IA transformar um recado de texto em lançamento. Roda só no servidor. */
+export async function lerTexto(chaveApi: string, texto: string, c: Contexto): Promise<Leitura> {
+  return pedirLeitura(chaveApi, instrucoesTexto(c), [{ type: "text", text: texto.slice(0, 500) }]);
+}
+
+async function pedirLeitura(chaveApi: string, sistema: string, conteudo: unknown[]): Promise<Leitura> {
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": chaveApi, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
       model: MODELO,
       max_tokens: 600,
-      system: instrucoes(c),
+      system: sistema,
       tools: [FERRAMENTA],
       tool_choice: { type: "tool", name: FERRAMENTA.name },
-      messages: [{ role: "user", content: [bloco, { type: "text", text: "Leia este comprovante." }] }],
+      messages: [{ role: "user", content: conteudo }],
     }),
   });
   const corpo = await r.json().catch(() => ({}));
