@@ -84,7 +84,7 @@ export const DEMO: Dados = {
     { id: "k-nubank", nome: "Nubank", dono: "jo", limite: 48316.49, dia_fechamento: 20, dia_vencimento: 27, conta_pagamento_id: null, limite_usado: null, limite_atualizado_em: null, ativo: true },
   ],
   fontes: [
-    { id: "f-plantrix", nome: "Plantrix", valor_bruto: 9000, percentual_imposto: 6, descontos_fixos: 277.2, dia_previsto: null, conta_id: "c-mp", ativo: true },
+    { id: "f-plantrix", nome: "Plantrix", valor_bruto: 9000, percentual_imposto: 5.84, descontos_fixos: 443.07, dia_previsto: null, conta_id: "c-mp", ativo: true },
     { id: "f-aluguel", nome: "Aluguel", valor_bruto: 8692.33, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: 20, conta_id: "c-sicredi", ativo: true },
     { id: "f-sady", nome: "Ajuda do Sady", valor_bruto: 10638, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: 5, conta_id: "c-sicredi", ativo: true },
     { id: "f-espaco", nome: "Espaço Soletti", valor_bruto: null, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: null, conta_id: "c-sicredi", ativo: true },

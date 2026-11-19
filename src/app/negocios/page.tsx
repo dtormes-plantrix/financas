@@ -455,8 +455,8 @@ function PainelMarcacao({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
     ...(r.bruto
       ? [
           { nome: "Faturamento (notas)", valor: r.bruto },
-          { nome: `Impostos das notas (${String(pct).replace(".", ",")}%)`, valor: r.impostoNotas, sinal: "−" as const },
-          ...(r.descontos ? [{ nome: "INSS", valor: r.descontos, sinal: "−" as const }] : []),
+          { nome: `Impostos das notas e ISS (${String(pct).replace(".", ",")}%)`, valor: r.impostoNotas, sinal: "−" as const },
+          ...(r.descontos ? [{ nome: "INSS e contador", valor: r.descontos, sinal: "−" as const }] : []),
         ]
       : []),
     { nome: r.previsto ? "Deve cair no Mercado Pago" : "Caiu na conta", valor: r.receita, sinal: r.bruto ? ("=" as const) : undefined, forte: true },
