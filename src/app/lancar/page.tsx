@@ -9,6 +9,7 @@ import { combinar, doEndereco, type Leitura } from "@/lib/comprovante";
 import { excluir, modoDemo, salvar, supabase } from "@/lib/dados";
 import { nomeMes, parcelasDaCompra } from "@/lib/fatura";
 import { hoje, lerValor, NOME_DONO, NOME_FORMA, reais } from "@/lib/formato";
+import { marcacaoPorPalavra } from "@/lib/negocios";
 import { buscaDaDescricao, normalizar, regraPara } from "@/lib/orcamento";
 import { descricaoAmbigua, sugerirCategorias } from "@/lib/sugestao";
 import type { Dono, Forma, Lancamento, TipoLancamento } from "@/lib/tipos";
@@ -96,6 +97,10 @@ function Lancar() {
   const [categoriaId, setCategoriaId] = useState<string>("");
   const [data, setData] = useState(hoje());
   const [deQuem, setDeQuem] = useState<Dono>("casa");
+  // gasto da casa que é da empresa (Plantrix): continua na fatura, mas aparece no painel dela
+  const [marcadoId, setMarcadoId] = useState<string | null>(null);
+  const [marcadoTocado, setMarcadoTocado] = useState(false);
+  const marcaveis = dados.negocios.filter((n) => n.so_marcacao && n.ativo);
   const [maisDetalhes, setMaisDetalhes] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -185,6 +190,8 @@ function Lancar() {
       setCategoriaId(editando.categoria_id ?? (editando.tipo === "saida" ? regraPara(editando.descricao, dados.regras)?.categoria_id : undefined) ?? "");
       setData(editando.data);
       setDeQuem(editando.de_quem);
+      setMarcadoId(editando.marcado_negocio_id ?? null);
+      setMarcadoTocado(true);
       setMaisDetalhes(true);
       return;
     }
@@ -208,6 +215,13 @@ function Lancar() {
     campoValor.current?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editarId]);
+
+  // Conta da empresa (ex.: Adobe) já vem marcada; quem decide por último é a pessoa.
+  useEffect(() => {
+    if (marcadoTocado || tipo !== "saida") return;
+    setMarcadoId(marcacaoPorPalavra(descricao, marcaveis)?.id ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [descricao, tipo, marcadoTocado]);
 
   const valor = lerValor(valorTexto);
   const cartao = cartoes.find((c) => c.id === cartaoId);
@@ -248,6 +262,8 @@ function Lancar() {
       fonte_id: tipo === "entrada" ? fonteId : null,
       categoria_id: categoriaId || null,
       de_quem: deQuem,
+      // só manda o campo depois que a atualização 0009 rodou (senão o Supabase recusa)
+      ...(marcaveis.length ? { marcado_negocio_id: tipo === "saida" ? marcadoId : null } : {}),
       ...(ehTransferencia || editando?.conta_destino_id ? { conta_destino_id: ehTransferencia ? destinoId ?? null : null } : {}),
     };
     try {
@@ -270,6 +286,8 @@ function Lancar() {
       setParcelas(1);
       setFonteId(null);
       setCategoriaId("");
+      setMarcadoId(null);
+      setMarcadoTocado(false);
       setDoComprovante(false);
       campoValor.current?.focus();
       setTimeout(() => setAviso(null), 4000);
@@ -452,6 +470,19 @@ function Lancar() {
         </>
       )}
       </>
+      )}
+
+      {tipo === "saida" && marcaveis.length > 0 && (
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          {marcaveis.map((n) => (
+            <button key={n.id} type="button"
+              onClick={() => { setMarcadoTocado(true); setMarcadoId(marcadoId === n.id ? null : n.id); }}
+              className={`chip ${marcadoId === n.id ? "chip-ativo" : ""}`}>
+              {marcadoId === n.id ? "✓ " : ""}É da {n.nome}
+            </button>
+          ))}
+          {marcadoId && <span className="text-xs text-tinta/60">continua na fatura da casa</span>}
+        </div>
       )}
 
       <button onClick={() => setMaisDetalhes(!maisDetalhes)} className="mb-4 text-sm font-medium text-tinta/60 underline">

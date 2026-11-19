@@ -14,7 +14,7 @@ import { SeletorCategoria } from "@/components/SeletorCategoria";
 import { excluir, modoDemo, salvar } from "@/lib/dados";
 import { nomeMes, somarMeses, type Mes } from "@/lib/fatura";
 import { dataCurta, hoje, lerValor, NOME_FORMA, reais } from "@/lib/formato";
-import { NOME_GRUPO, previsaoEntradas, repassesDoNegocio, resumoNegocio, type PrevisaoEntradas, type ResumoNegocio } from "@/lib/negocios";
+import { NOME_GRUPO, previsaoEntradas, repassesDoNegocio, resumoMarcacao, resumoNegocio, type PrevisaoEntradas, type ResumoNegocio } from "@/lib/negocios";
 import { gastosPorCategoria, ritmoDoMes } from "@/lib/orcamento";
 import { noMes } from "@/lib/painel";
 import type { Forma, Grupo, Lancamento, Negocio } from "@/lib/tipos";
@@ -63,6 +63,7 @@ function Telas() {
   }
 
   if (!negocio) return <Visao negocios={negocios} mes={mes} />;
+  if (negocio.so_marcacao) return <PainelMarcacao key={`${negocio.id}-${chave(mes)}`} negocio={negocio} mes={mes} />;
   if (busca.get("ver") === "lancamentos") return <Lancamentos key={`${negocio.id}-${chave(mes)}`} negocio={negocio} mes={mes} />;
   return <PainelNegocio key={`${negocio.id}-${chave(mes)}`} negocio={negocio} mes={mes} />;
 }
@@ -108,9 +109,11 @@ function Visao({ negocios, mes }: { negocios: Negocio[]; mes: Mes }) {
         <h1 className="text-xl font-semibold lg:text-2xl">Negócios</h1>
         <TrocaMes mes={mes} href={(m) => `/negocios?m=${chave(m)}`} />
       </div>
-      <Juntos negocios={negocios} mes={mes} />
+      <Juntos negocios={negocios.filter((n) => !n.so_marcacao)} mes={mes} />
       <div className="lg:grid lg:grid-cols-2 lg:gap-6">
-        {negocios.map((n) => <CartaoNegocio key={n.id} negocio={n} mes={mes} />)}
+        {negocios.map((n) =>
+          n.so_marcacao ? <CartaoMarcacao key={n.id} negocio={n} mes={mes} /> : <CartaoNegocio key={n.id} negocio={n} mes={mes} />,
+        )}
       </div>
     </Pagina>
   );
@@ -164,7 +167,7 @@ function CartaoNegocio({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
           Ainda deve entrar <strong className="text-verde">{curto(previsao.previsto - previsao.jaEntrou)}</strong> · previsto {curto(previsao.previsto)}
         </div>
       )}
-      <MiniGrafico historico={historico} />
+      <MiniGrafico historico={historico.map((h) => ({ mes: h.mes, resultado: h.r.resultado }))} />
       <div className="mt-2 flex items-baseline justify-between border-t border-tinta/10 pt-2 text-xs text-tinta/60">
         <span>No caixa do negócio</span>
         <span className={`font-medium tabular-nums ${r.caixa < 0 ? "text-vermelho" : "text-tinta"}`}>{curto(r.caixa)}</span>
@@ -179,17 +182,17 @@ function CartaoNegocio({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
 }
 
 /** Seis barrinhas com a sobra de cada mês (verde sobrou, vermelho faltou). */
-function MiniGrafico({ historico }: { historico: { mes: Mes; r: ResumoNegocio }[] }) {
-  const maior = Math.max(1, ...historico.map((h) => Math.abs(h.r.resultado)));
+function MiniGrafico({ historico, rotulo = "Sobra dos últimos 6 meses" }: { historico: { mes: Mes; resultado: number }[]; rotulo?: string }) {
+  const maior = Math.max(1, ...historico.map((h) => Math.abs(h.resultado)));
   return (
     <div className="mt-2">
-      <div className="text-[10px] text-tinta/50">Sobra dos últimos 6 meses</div>
+      <div className="text-[10px] text-tinta/50">{rotulo}</div>
       <div className="mt-1 flex h-10 items-end gap-1">
         {historico.map((h, i) => (
           <div key={i} className="flex h-full flex-1 flex-col items-center justify-end">
             <div
-              className={`w-full rounded-sm ${h.r.resultado < 0 ? "bg-vermelho/70" : i === historico.length - 1 ? "bg-verde" : "bg-verde/40"}`}
-              style={{ height: `${Math.max(3, (Math.abs(h.r.resultado) / maior) * 100)}%` }}
+              className={`w-full rounded-sm ${h.resultado < 0 ? "bg-vermelho/70" : i === historico.length - 1 ? "bg-verde" : "bg-verde/40"}`}
+              style={{ height: `${Math.max(3, (Math.abs(h.resultado) / maior) * 100)}%` }}
             />
           </div>
         ))}
@@ -398,6 +401,127 @@ function MaioresGastos({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// ───────────────────── Negócio só de marcação (Plantrix) ─────────────────────
+// Sem caixa próprio: a renda cai na conta da casa e os gastos ficam nos cartões
+// da casa, marcados como da empresa. Aqui só se vê o resultado.
+
+function useMarcacao(negocio: Negocio, mes: Mes) {
+  const { dados } = useSessao();
+  const fonte = dados.fontes.find((f) => f.id === negocio.fonte_id);
+  const r = resumoMarcacao(negocio, fonte, mes, dados.lancamentos, hoje());
+  const historico = [-5, -4, -3, -2, -1, 0].map((d) => {
+    const m = somarMeses(mes, d);
+    return { mes: m, resultado: resumoMarcacao(negocio, fonte, m, dados.lancamentos, hoje()).resultado };
+  });
+  return { r, historico };
+}
+
+function CartaoMarcacao({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
+  const { r, historico } = useMarcacao(negocio, mes);
+  const t = tom(r.resultado, r.receita);
+  return (
+    <Link href={`/negocios?n=${negocio.id}&m=${chave(mes)}`} className="cartao mb-3 block px-3 py-3 transition active:scale-[0.99]">
+      <div className="flex items-baseline justify-between">
+        <span className="text-lg font-semibold">{negocio.nome}</span>
+        <span className="text-sm text-tinta/50">abrir ›</span>
+      </div>
+      <div className={`mt-2 rounded-xl px-3 py-2 ${t.fundo}`}>
+        <div className="text-xs text-tinta/60">Resultado de {nomeMes(mes)}{r.previsto ? " (previsto)" : ""}</div>
+        <div className={`text-2xl font-bold tracking-tight tabular-nums ${t.texto}`}>{curto(r.resultado)}</div>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+        <div><span className="block text-xs text-tinta/60">{r.previsto ? "Deve entrar" : "Entrou"}</span><span className="font-semibold tabular-nums text-verde">{curto(r.receita)}</span></div>
+        <div><span className="block text-xs text-tinta/60">Gastos marcados</span><span className="font-semibold tabular-nums text-vermelho">{curto(r.gastos)}</span></div>
+      </div>
+      <MiniGrafico historico={historico} rotulo="Resultado dos últimos 6 meses" />
+      <div className="mt-2 border-t border-tinta/10 pt-2 text-xs text-tinta/60">Os gastos continuam na fatura da casa.</div>
+    </Link>
+  );
+}
+
+function PainelMarcacao({ negocio, mes }: { negocio: Negocio; mes: Mes }) {
+  const { dados } = useSessao();
+  const { r, historico } = useMarcacao(negocio, mes);
+  const t = tom(r.resultado, r.receita);
+  const base = `/negocios?n=${negocio.id}`;
+  const fonte = dados.fontes.find((f) => f.id === negocio.fonte_id);
+  const pct = Number(fonte?.percentual_imposto) || 0;
+  const cartao = (l: Lancamento) =>
+    dados.cartoes.find((c) => c.id === l.cartao_id)?.nome ?? dados.contas.find((c) => c.id === l.conta_id)?.nome ?? NOME_FORMA[l.forma];
+  const linhas: { nome: string; valor: number; sinal?: "−" | "="; forte?: boolean }[] = [
+    ...(r.bruto
+      ? [
+          { nome: "Faturamento (notas)", valor: r.bruto },
+          { nome: `Impostos das notas (${String(pct).replace(".", ",")}%)`, valor: r.impostoNotas, sinal: "−" as const },
+          ...(r.descontos ? [{ nome: "INSS", valor: r.descontos, sinal: "−" as const }] : []),
+        ]
+      : []),
+    { nome: r.previsto ? "Deve cair no Mercado Pago" : "Caiu na conta", valor: r.receita, sinal: r.bruto ? ("=" as const) : undefined, forte: true },
+    { nome: "Gastos marcados", valor: r.gastos, sinal: "−" },
+    { nome: "Resultado", valor: r.resultado, sinal: "=", forte: true },
+  ];
+
+  return (
+    <Pagina larga>
+      <Link href={`/negocios?m=${chave(mes)}`} className="mb-1 inline-block text-sm text-tinta/60">‹ Negócios</Link>
+      <div className="mb-3 flex items-center justify-between gap-2 lg:mb-6">
+        <h1 className="truncate text-xl font-semibold lg:text-2xl">{negocio.nome}</h1>
+        <TrocaMes mes={mes} href={(m) => `${base}&m=${chave(m)}`} />
+      </div>
+
+      <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+        <div>
+          <div className={`mb-3 rounded-2xl px-3 py-2.5 ring-1 ring-tinta/5 ${t.fundo}`}>
+            <div className="text-xs font-medium">Resultado de {nomeMes(mes)}{r.previsto ? " (previsto)" : ""}</div>
+            <div className={`mt-0.5 text-3xl font-bold tracking-tight tabular-nums ${t.texto}`}>{curto(r.resultado)}</div>
+            <div className="text-xs text-tinta/70">o que entrou menos os gastos da empresa</div>
+          </div>
+
+          <div className="cartao mb-3 px-3 py-2.5">
+            <div className="mb-1 text-xs font-medium text-tinta/50">Conta do mês</div>
+            {linhas.map((l) => (
+              <div key={l.nome} className={`flex justify-between py-1 text-sm ${l.sinal === "=" ? "border-t border-tinta/10" : ""} ${l.forte ? "font-semibold" : ""}`}>
+                <span>{l.sinal === "−" ? "− " : ""}{l.nome}</span>
+                <span className={`tabular-nums ${l.nome === "Resultado" ? (l.valor < 0 ? "text-vermelho" : "text-verde") : ""}`}>{curto(l.valor)}</span>
+              </div>
+            ))}
+            {r.previsto && <p className="mt-1 text-xs text-tinta/60">A entrada do mês ainda não foi lançada; usei o valor previsto.</p>}
+          </div>
+
+          <div className="cartao mb-3 px-3 py-2.5">
+            <MiniGrafico historico={historico} rotulo="Resultado dos últimos 6 meses" />
+          </div>
+        </div>
+
+        <div>
+          <div className="cartao mb-3 overflow-hidden">
+            <div className="px-3 pt-2.5 text-xs font-medium text-tinta/50">Gastos da empresa em {nomeMes(mes)}</div>
+            {r.lancamentosGastos.length === 0 ? (
+              <p className="px-3 pb-3 pt-1 text-sm text-tinta/60">Nenhum gasto marcado neste mês.</p>
+            ) : (
+              <div className="divide-y divide-tinta/5">
+                {r.lancamentosGastos.map((l) => (
+                  <Link key={l.id} href={`/lancar?id=${l.id}`} className="flex items-center justify-between gap-3 px-3 py-2.5 active:bg-tinta/5">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">{l.descricao || "Sem descrição"}</div>
+                      <div className="text-xs text-tinta/60">{dataCurta(l.data)} · {cartao(l)}</div>
+                    </div>
+                    <span className="shrink-0 tabular-nums text-sm text-vermelho">{curto(Number(l.valor))}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+          <p className="px-1 text-xs text-tinta/60">
+            Para marcar um gasto, abra-o no Extrato e toque em <strong>É da {negocio.nome}</strong>. Ele continua na fatura do cartão
+            e no mês da casa, mas não entra no orçamento das categorias da casa.
+          </p>
+        </div>
+      </div>
+    </Pagina>
   );
 }
 

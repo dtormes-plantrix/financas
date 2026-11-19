@@ -84,7 +84,7 @@ export const DEMO: Dados = {
     { id: "k-nubank", nome: "Nubank", dono: "jo", limite: 48316.49, dia_fechamento: 20, dia_vencimento: 27, conta_pagamento_id: null, limite_usado: null, limite_atualizado_em: null, ativo: true },
   ],
   fontes: [
-    { id: "f-plantrix", nome: "Plantrix", valor_bruto: 9000, percentual_imposto: 6, descontos_fixos: 0, dia_previsto: null, conta_id: "c-mp", ativo: true },
+    { id: "f-plantrix", nome: "Plantrix", valor_bruto: 9000, percentual_imposto: 6, descontos_fixos: 277.2, dia_previsto: null, conta_id: "c-mp", ativo: true },
     { id: "f-aluguel", nome: "Aluguel", valor_bruto: 8692.33, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: 20, conta_id: "c-sicredi", ativo: true },
     { id: "f-sady", nome: "Ajuda do Sady", valor_bruto: 10638, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: 5, conta_id: "c-sicredi", ativo: true },
     { id: "f-espaco", nome: "Espaço Soletti", valor_bruto: null, percentual_imposto: 0, descontos_fixos: 0, dia_previsto: null, conta_id: "c-sicredi", ativo: true },
@@ -119,6 +119,8 @@ export const DEMO: Dados = {
     { id: "l3", tipo: "saida", valor: 1200, data: dia(-2), descricao: "Geladeira", forma: "credito", conta_id: null, cartao_id: "k-mp", parcelas: 6, fonte_id: null, categoria_id: "cat-0-5", de_quem: "casa", criado_por: "demo-diego", criado_em: agora },
     { id: "l4", tipo: "saida", valor: 622.12, data: dia(-3), descricao: "Águas Cuiabá", forma: "pix", conta_id: "c-sicredi", cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: "cat-0-1", de_quem: "casa", criado_por: "demo-jo", criado_em: agora },
     { id: "l5", tipo: "transferencia", valor: 3000, data: dia(-4), descricao: "Para a conta da Jô", forma: "pix", conta_id: "c-mp", conta_destino_id: "c-sicredi", cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "diego", criado_por: "demo-diego", criado_em: agora },
+    { id: "l11", tipo: "saida", valor: 189, data: dia(-2), descricao: "Ebn Adobe", forma: "credito", conta_id: null, cartao_id: "k-sicredi", parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "diego", criado_por: null, criado_em: agora, marcado_negocio_id: "n-plantrix" },
+    { id: "l12", tipo: "saida", valor: 113.85, data: dia(-3), descricao: "Anthropic Claude", forma: "credito", conta_id: null, cartao_id: "k-mp", parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "diego", criado_por: null, criado_em: agora, marcado_negocio_id: "n-plantrix" },
     { id: "n1", tipo: "entrada", valor: 350, data: dia(0), descricao: "Mensalidade Ana", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-studio", grupo: "aluno" },
     { id: "n2", tipo: "entrada", valor: 350, data: dia(-1), descricao: "Mensalidade Carla", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-studio", grupo: "aluno" },
     { id: "n3", tipo: "entrada", valor: 280, data: dia(-2), descricao: "Mensalidade Bia", forma: "pix", conta_id: null, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null, de_quem: "jo", criado_por: "demo-jo", criado_em: agora, negocio_id: "n-studio", grupo: "aluno" },
@@ -132,6 +134,7 @@ export const DEMO: Dados = {
   negocios: [
     { id: "n-studio", nome: "Studio Pilates", fonte_id: "f-studio", ativo: true },
     { id: "n-espaco", nome: "Espaço Soletti", fonte_id: "f-espaco", ativo: true },
+    { id: "n-plantrix", nome: "Plantrix", fonte_id: "f-plantrix", ativo: true, so_marcacao: true, palavras_marcacao: ["google", "adobe", "magnific", "anthropic", "contabilivre"] },
   ],
   lancamentosNegocios: [],
   compromissos: [

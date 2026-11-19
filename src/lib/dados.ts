@@ -104,7 +104,7 @@ function separar(d: Dados): Dados {
 export async function carregarTudo(): Promise<Dados> {
   if (modoDemo) return separar(lerDemo());
   const s = supabase();
-  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias, negocios, grupos, gruposNegocio, recorrentes, regras] = await Promise.all([
+  const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias, negocios, grupos, gruposNegocio, recorrentes, regras, marcacao] = await Promise.all([
     s.from("membros").select("*"),
     s.from("contas").select("*").order("nome"),
     s.from("cartoes").select("*").order("nome"),
@@ -120,6 +120,7 @@ export async function carregarTudo(): Promise<Dados> {
     s.from("grupos").select("negocio_id").limit(1),
     s.from("compromissos").select("busca").limit(1),
     s.from("regras_categoria").select("*"),
+    s.from("negocios").select("so_marcacao").limit(1),
   ]);
   // Se uma atualização do banco ainda não rodou, o app continua funcionando e avisa em Ajustes.
   const faltaAtualizar = compromissos.error
@@ -136,7 +137,9 @@ export async function carregarTudo(): Promise<Dados> {
               ? "0007_contas_que_se_repetem.sql"
               : regras.error
                 ? "0008_orcamento_por_categoria.sql"
-                : null;
+                : marcacao.error
+                  ? "0009_plantrix.sql"
+                  : null;
   const erro = [membros, contas, cartoes, fontes, categorias, lancamentos, faturas].find((r) => r.error);
   if (erro?.error) throw new Error(erro.error.message);
   return separar({

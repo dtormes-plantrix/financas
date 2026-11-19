@@ -10,6 +10,9 @@ export type Negocio = {
   nome: string;
   fonte_id: string | null; // renda da casa que recebe as sobras
   ativo: boolean;
+  // Sem caixa próprio (Plantrix): os gastos ficam na casa e só são marcados como do negócio.
+  so_marcacao?: boolean;
+  palavras_marcacao?: string[] | null; // ex.: "adobe" — lançamento com essa palavra já vem marcado
 };
 
 export type Membro = { user_id: string; nome: string; apelido: Dono };
@@ -78,6 +81,7 @@ export type Lancamento = {
   compromisso_id?: string | null;
   negocio_id?: string | null; // lançamento do Studio ou do Espaço: fica fora das contas da casa
   grupo?: Grupo | null;
+  marcado_negocio_id?: string | null; // gasto da casa que é da empresa (ex.: Plantrix): continua na casa
   criado_por: string | null;
   criado_em: string;
 };
