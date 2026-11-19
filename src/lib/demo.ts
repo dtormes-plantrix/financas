@@ -134,7 +134,7 @@ export const DEMO: Dados = {
   negocios: [
     { id: "n-studio", nome: "Studio Pilates", fonte_id: "f-studio", ativo: true },
     { id: "n-espaco", nome: "Espaço Soletti", fonte_id: "f-espaco", ativo: true },
-    { id: "n-plantrix", nome: "Plantrix", fonte_id: "f-plantrix", ativo: true, so_marcacao: true, palavras_marcacao: ["google", "adobe", "magnific", "anthropic", "contabilivre"] },
+    { id: "n-plantrix", nome: "Plantrix", fonte_id: "f-plantrix", ativo: true, so_marcacao: true, palavras_marcacao: ["google", "adobe", "magnific", "anthropic", "contabilivre", "microsoft"] },
   ],
   lancamentosNegocios: [],
   compromissos: [
