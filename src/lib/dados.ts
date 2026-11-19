@@ -226,6 +226,22 @@ export async function criar<T extends Registro>(tabela: Tabela, registro: T): Pr
   return id;
 }
 
+/** Cria vários registros de uma vez (usado na importação do extrato). */
+export async function criarVarios<T extends Registro>(tabela: Tabela, registros: T[]): Promise<void> {
+  if (!registros.length) return;
+  if (modoDemo) {
+    const d = lerDemo();
+    const lista = d[CAMPO_DEMO[tabela]] as unknown as Registro[];
+    for (const r of registros) lista.unshift({ ...r, id: crypto.randomUUID(), criado_em: new Date().toISOString() });
+    gravarDemo(d);
+    return;
+  }
+  for (let i = 0; i < registros.length; i += 500) {
+    const { error } = await supabase().from(tabela).insert(registros.slice(i, i + 500) as Record<string, unknown>[]);
+    if (error) throw new Error(error.message);
+  }
+}
+
 export async function excluir(tabela: Tabela, id: string): Promise<void> {
   if (modoDemo) {
     const d = lerDemo();
