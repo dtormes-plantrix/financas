@@ -1,6 +1,6 @@
 "use client";
 
-// Importar extrato: a pessoa escolhe o PDF do extrato da conta ou da fatura do cartão,
+// Importar extrato: a pessoa escolhe o PDF ou o OFX do extrato da conta ou da fatura do cartão,
 // o app lê (sem IA, aqui mesmo no aparelho), mostra o que já está lançado e lança o que falta.
 
 import Link from "next/link";
@@ -10,6 +10,7 @@ import { useSessao } from "@/components/Sessao";
 import { criarVarios } from "@/lib/dados";
 import { conciliar, sugerirDestino, type Destino, type Linha } from "@/lib/extrato/conciliar";
 import { lerArquivo, type ArquivoLido } from "@/lib/extrato/leitores";
+import { decodificarOfx, ehOfx, lerOfx } from "@/lib/extrato/ofx";
 import { textoDoPdf } from "@/lib/extrato/texto";
 import { dataCurta, NOME_FORMA, reais } from "@/lib/formato";
 
@@ -65,10 +66,15 @@ export default function Importar() {
     setArq(null);
     setLendo(true);
     try {
-      const texto = await lerPdf(arquivo);
-      const lido = lerArquivo(texto);
+      const bytes = new Uint8Array(await arquivo.arrayBuffer());
+      const textoOfx = /\.(ofx|qfx)$/i.test(arquivo.name) || ehOfx(new TextDecoder("latin1").decode(bytes.slice(0, 2000))) ? decodificarOfx(bytes) : null;
+      const lido = textoOfx ? lerOfx(textoOfx) : lerArquivo(await lerPdf(arquivo));
       if (!lido) {
-        setErro("Não reconheci esse PDF. Por enquanto o app lê o extrato da conta do Mercado Pago e do Sicredi e a fatura do cartão do Mercado Pago, do Sicredi e do Nubank.");
+        setErro(
+          textoOfx
+            ? "Não consegui ler esse OFX. Tente exportar de novo no app do banco (formato OFX ou Money)."
+            : "Não reconheci esse PDF. O app lê o extrato da conta do Mercado Pago e do Sicredi e a fatura do cartão do Mercado Pago, do Sicredi e do Nubank. De outros bancos, use o arquivo OFX.",
+        );
         return;
       }
       if (!lido.itens.length) {
@@ -80,7 +86,7 @@ export default function Importar() {
       setDesmarcados(new Set());
       setMarcadosExtra(new Set());
     } catch (e) {
-      setErro(`Não consegui abrir esse PDF. ${e instanceof Error ? e.message : ""}`.trim());
+      setErro(`Não consegui abrir esse arquivo. ${e instanceof Error ? e.message : ""}`.trim());
     } finally {
       setLendo(false);
     }
@@ -115,11 +121,11 @@ export default function Importar() {
       </div>
 
       <label className={`cartao mb-4 block cursor-pointer text-center ${lendo ? "opacity-60" : ""}`}>
-        <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={escolher} disabled={lendo} />
-        <span className="block text-lg font-semibold">{lendo ? "Lendo o PDF…" : arq ? "Escolher outro PDF" : "Escolher o PDF"}</span>
+        <input type="file" accept="application/pdf,.pdf,.ofx,.qfx,application/x-ofx,application/ofx" className="hidden" onChange={escolher} disabled={lendo} />
+        <span className="block text-lg font-semibold">{lendo ? "Lendo o arquivo…" : arq ? "Escolher outro arquivo" : "Escolher o PDF ou OFX"}</span>
         <span className="mt-1 block text-sm text-tinta/60">
-          Extrato da conta (Mercado Pago, Sicredi) ou fatura do cartão (Mercado Pago, Sicredi, Nubank). O app lê aqui no celular e
-          mostra o que já foi lançado e o que falta.
+          OFX de qualquer banco (extrato ou fatura), ou PDF do Mercado Pago, Sicredi e Nubank. O app lê aqui no celular e mostra o
+          que já foi lançado e o que falta. Pode importar o mesmo período de novo: o que já entrou não entra duas vezes.
         </span>
       </label>
 
@@ -136,8 +142,10 @@ export default function Importar() {
         <>
           <div className="cartao mb-4">
             <div className="font-semibold">{arq.titulo}</div>
-            <div className={`mt-1 text-sm ${arq.confere ? "text-verde" : "text-amarelo"}`}>
-              {arq.confere
+            <div className={`mt-1 text-sm ${arq.confere ? "text-verde" : arq.semTotal ? "text-tinta/60" : "text-amarelo"}`}>
+              {arq.semTotal
+                ? `Li ${arq.itens.length} linhas. O arquivo não traz um total para conferir; cada transação tem o código do banco, então nada entra duas vezes.`
+                : arq.confere
                 ? `✓ Li ${arq.itens.length} linhas e a conta bate com o banco (${reais(arq.totalDoBanco)})`
                 : `Atenção: li ${arq.itens.length} linhas, mas a soma deu ${reais(arq.soma)} e o banco diz ${reais(arq.totalDoBanco)}. Confira antes de lançar.`}
             </div>

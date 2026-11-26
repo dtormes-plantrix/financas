@@ -236,8 +236,14 @@ export async function criarVarios<T extends Registro>(tabela: Tabela, registros:
     gravarDemo(d);
     return;
   }
-  for (let i = 0; i < registros.length; i += 500) {
-    const { error } = await supabase().from(tabela).insert(registros.slice(i, i + 500) as Record<string, unknown>[]);
+  let lista = registros as unknown as Record<string, unknown>[];
+  for (let i = 0; i < lista.length; i += 500) {
+    let { error } = await supabase().from(tabela).insert(lista.slice(i, i + 500));
+    // banco ainda sem a coluna id_banco (SQL 0012 não rodado): lança mesmo assim, sem o código do banco
+    if (error && /id_banco/.test(error.message)) {
+      lista = lista.map(({ id_banco: _, ...resto }) => resto);
+      ({ error } = await supabase().from(tabela).insert(lista.slice(i, i + 500)));
+    }
     if (error) throw new Error(error.message);
   }
 }

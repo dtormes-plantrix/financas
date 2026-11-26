@@ -25,12 +25,20 @@ type Base = {
   lancamentos: Lancamento[]; // casa e negócios juntos, para não lançar duas vezes
 };
 
-const NOME_BANCO: Record<Banco, string> = { mercado_pago: "mercado pago", nubank: "nubank", sicredi: "sicredi" };
+const NOME_BANCO: Record<Banco, string | null> = {
+  mercado_pago: "mercado pago",
+  nubank: "nubank",
+  sicredi: "sicredi",
+  inter: "inter",
+  banco_do_brasil: "brasil",
+  outro: null,
+};
 const simples = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /** Qual conta ou cartão do app combina com o arquivo (pelo nome do banco). */
 export function sugerirDestino(arq: ArquivoLido, base: Pick<Base, "contas" | "cartoes">): Destino | null {
   const nome = NOME_BANCO[arq.banco];
+  if (!nome) return null;
   if (arq.tipo === "fatura") {
     const c = base.cartoes.find((x) => x.ativo !== false && simples(x.nome).includes(nome));
     return c ? { tipo: "cartao", id: c.id } : null;
@@ -59,11 +67,25 @@ export function conciliar(arq: ArquivoLido, destino: Destino, base: Base): Linha
 
   const contaDe = (quem: Dono) => base.contas.find((c) => c.ativo !== false && c.dono === quem && c.id !== conta?.id);
 
+  // códigos de transação do banco (OFX) que já estão no app
+  const porIdBanco = new Map<string, Lancamento>();
+  for (const l of base.lancamentos) if (l.id_banco) porIdBanco.set(l.id_banco, l);
+  const reservados = new Set<string>();
+  for (const i of arq.itens) {
+    const l = i.idBanco ? porIdBanco.get(i.idBanco) : undefined;
+    if (l) reservados.add(l.id);
+  }
+
   function procurar(item: ItemLido): Lancamento | undefined {
+    if (item.idBanco) {
+      const mesmo = porIdBanco.get(item.idBanco);
+      if (mesmo) return mesmo; // já importado deste mesmo arquivo (ou de outro com a mesma transação)
+    }
     let melhor: Lancamento | undefined;
     let menor = Infinity;
     for (const l of base.lancamentos) {
       if (usados.has(l.id)) continue;
+      if (reservados.has(l.id)) continue; // é de outra linha deste arquivo (mesmo código do banco)
       let bate = false;
       let limiteDias = 4;
       if (cartao) {
@@ -148,6 +170,7 @@ export function conciliar(arq: ArquivoLido, destino: Destino, base: Base): Linha
           categoria_id: hist?.categoria_id ?? null,
           de_quem: cartao.dono,
           criado_por: null,
+          ...(item.idBanco ? { id_banco: item.idBanco } : {}),
         },
       };
     }
@@ -163,6 +186,7 @@ export function conciliar(arq: ArquivoLido, destino: Destino, base: Base): Linha
       categoria_id: null,
       de_quem: dono,
       criado_por: null,
+      ...(item.idBanco ? { id_banco: item.idBanco } : {}),
     } as const;
 
     // Pix entre o Diego e a Jô: é "entre contas", não é gasto nem renda.

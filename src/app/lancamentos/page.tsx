@@ -120,7 +120,7 @@ export default function Extrato() {
     <Pagina>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Extrato</h1>
-        <Link href="/importar" className="botao-secundario py-2 text-sm">Importar PDF do banco</Link>
+        <Link href="/importar" className="botao-secundario py-2 text-sm">Importar do banco</Link>
       </div>
 
       <div className="mb-3 flex items-center justify-between">

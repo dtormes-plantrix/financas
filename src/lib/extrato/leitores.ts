@@ -2,7 +2,7 @@
 // Mercado Pago (conta e cartão), Sicredi (conta e cartão) e Nubank (cartão).
 // Cada leitor soma o que leu e compara com o total que o banco imprime no PDF.
 
-export type Banco = "mercado_pago" | "nubank" | "sicredi";
+export type Banco = "mercado_pago" | "nubank" | "sicredi" | "inter" | "banco_do_brasil" | "outro";
 
 export type ItemLido = {
   data: string; // AAAA-MM-DD (na compra parcelada, a data da compra)
@@ -11,6 +11,7 @@ export type ItemLido = {
   valor: number; // sempre positivo
   sinal: "entra" | "sai";
   parcela?: { numero: number; de: number };
+  idBanco?: string; // código da transação no banco (FITID do OFX): evita lançar duas vezes
 };
 
 export type ArquivoLido = {
@@ -21,6 +22,8 @@ export type ArquivoLido = {
   soma: number; // o que o app somou
   totalDoBanco: number; // o que o PDF diz
   confere: boolean;
+  formato?: "pdf" | "ofx";
+  semTotal?: boolean; // o arquivo não traz um total para conferir a soma
 };
 
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
@@ -43,7 +46,7 @@ function anoDaFatura(mes: number, venc: { ano: number; mes: number }) {
 }
 
 /** Volta n meses numa data, sem passar do último dia do mês. */
-function voltarMeses(data: string, n: number): string {
+export function voltarMeses(data: string, n: number): string {
   const [a, m, d] = data.split("-").map(Number);
   const total = a * 12 + (m - 1) - n;
   const ano = Math.floor(total / 12);
