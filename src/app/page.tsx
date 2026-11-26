@@ -17,6 +17,7 @@ import {
   type SituacaoConta,
 } from "@/lib/painel";
 import { sugerirRecorrentes } from "@/lib/recorrentes";
+import { calendario } from "@/lib/calendario";
 
 export default function Painel() {
   const { eu } = useSessao();
@@ -39,6 +40,7 @@ export default function Painel() {
           <Link href="/mes" className="mb-3 block px-1 text-right text-xs text-tinta/60 underline">
             Ver detalhes do mês
           </Link>
+          <AvisoContas />
           <BlocoOrcamento itens={orcamento} ritmo={ritmoDoMes(rAtual.mes, dia)} mes={rAtual.mes} titulo={`Orçamento de ${nomeMes(rAtual.mes)}`} />
           <AvisoFixas />
         </div>
@@ -62,6 +64,34 @@ function BlocoSobra({ r, rotulo, href }: { r: ResumoMes; rotulo: string; href: s
       <div className="text-xs text-tinta/70">{t.frase} ›</div>
     </Link>
   );
+}
+
+/** Contas a pagar: vencidas, hoje e próximos 7 dias. Abre o calendário de contas. */
+function AvisoContas() {
+  const { dados } = useSessao();
+  const cal = calendario(dados, hoje());
+  const atrasadas = cal.vencidas.length;
+  const logo = cal.hoje.length + cal.semana.length;
+  const valorLogo = cal.totais.hoje + cal.totais.semana;
+  const fundo = atrasadas ? "bg-vermelho-claro" : cal.hoje.length ? "bg-amarelo-claro" : "bg-white";
+  return (
+    <Link href="/contas" className={`mb-3 flex items-center justify-between gap-2 rounded-2xl px-3 py-2 text-sm ring-1 ring-tinta/5 ${fundo}`}>
+      <span className="min-w-0">
+        <span className="font-medium">Contas a pagar</span>
+        <span className="block truncate text-xs text-tinta/70">
+          {atrasadas > 0 && <span className="font-medium text-vermelho">{atrasadas} {atrasadas > 1 ? "vencidas" : "vencida"} ({curto(cal.totais.vencidas)}) · </span>}
+          {logo > 0 ? `${logo} até ${dataCurta(semana(hoje()))}: ${curto(valorLogo)}` : "nada nos próximos 7 dias"}
+        </span>
+      </span>
+      <span className="shrink-0 text-xs text-tinta/60 underline">ver ›</span>
+    </Link>
+  );
+}
+
+function semana(dia: string): string {
+  const d = new Date(`${dia}T12:00:00`);
+  d.setDate(d.getDate() + 7);
+  return d.toISOString().slice(0, 10);
 }
 
 /** Lembra de confirmar as contas que se repetem, para o mês que vem sair certo. */
