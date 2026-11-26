@@ -92,6 +92,7 @@ export type FaturaInformada = {
   cartao_id: string;
   mes: string; // AAAA-MM (mês de vencimento)
   valor: number;
+  paga_em?: string | null; // AAAA-MM-DD em que a fatura foi marcada como paga (calendário de contas)
 };
 
 export type Compromisso = {

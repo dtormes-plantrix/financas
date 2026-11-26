@@ -281,3 +281,28 @@ export function resetarDemo() {
     localStorage.removeItem(CHAVE_DEMO);
   } catch {}
 }
+
+/**
+ * Marca a fatura do mês como paga (calendário de contas), guardando o valor pago.
+ * Com pagaEm = null, desfaz a marcação e mantém o valor.
+ */
+export async function marcarFaturaPaga(cartaoId: string, mes: string, valor: number, pagaEm: string | null): Promise<void> {
+  if (modoDemo) {
+    const d = lerDemo();
+    const atual = d.faturasInformadas.find((f) => f.cartao_id === cartaoId && f.mes === mes);
+    if (atual) Object.assign(atual, { valor, paga_em: pagaEm });
+    else d.faturasInformadas.push({ id: crypto.randomUUID(), cartao_id: cartaoId, mes, valor, paga_em: pagaEm });
+    gravarDemo(d);
+    return;
+  }
+  const { error } = await supabase()
+    .from("faturas_informadas")
+    .upsert({ cartao_id: cartaoId, mes, valor, paga_em: pagaEm }, { onConflict: "cartao_id,mes" });
+  if (error) {
+    throw new Error(
+      /paga_em/.test(error.message)
+        ? "Falta rodar a atualização 0012_calendario_de_contas.sql no Supabase (veja em docs/CALENDARIO.md)."
+        : error.message,
+    );
+  }
+}
