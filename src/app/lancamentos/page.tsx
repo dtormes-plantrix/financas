@@ -118,7 +118,10 @@ export default function Extrato() {
 
   return (
     <Pagina>
-      <h1 className="mb-4 text-2xl font-semibold">Extrato</h1>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Extrato</h1>
+        <Link href="/importar" className="botao-secundario py-2 text-sm">Importar do banco</Link>
+      </div>
 
       <div className="mb-3 flex items-center justify-between">
         <button aria-label="Mês anterior" disabled={f.todosOsMeses} onClick={() => mudar({ mes: somarMeses(f.mes, -1) })} className="botao-secundario px-4 disabled:opacity-30">‹</button>

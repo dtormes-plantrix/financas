@@ -82,6 +82,7 @@ export type Lancamento = {
   negocio_id?: string | null; // lançamento do Studio ou do Espaço: fica fora das contas da casa
   grupo?: Grupo | null;
   marcado_negocio_id?: string | null; // gasto da casa que é da empresa (ex.: Plantrix): continua na casa
+  id_banco?: string | null; // código da transação no arquivo OFX do banco (FITID), para não importar duas vezes
   criado_por: string | null;
   criado_em: string;
 };

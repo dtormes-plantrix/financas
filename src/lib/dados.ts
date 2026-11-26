@@ -226,6 +226,28 @@ export async function criar<T extends Registro>(tabela: Tabela, registro: T): Pr
   return id;
 }
 
+/** Cria vários registros de uma vez (usado na importação do extrato). */
+export async function criarVarios<T extends Registro>(tabela: Tabela, registros: T[]): Promise<void> {
+  if (!registros.length) return;
+  if (modoDemo) {
+    const d = lerDemo();
+    const lista = d[CAMPO_DEMO[tabela]] as unknown as Registro[];
+    for (const r of registros) lista.unshift({ ...r, id: crypto.randomUUID(), criado_em: new Date().toISOString() });
+    gravarDemo(d);
+    return;
+  }
+  let lista = registros as unknown as Record<string, unknown>[];
+  for (let i = 0; i < lista.length; i += 500) {
+    let { error } = await supabase().from(tabela).insert(lista.slice(i, i + 500));
+    // banco ainda sem a coluna id_banco (SQL 0012 não rodado): lança mesmo assim, sem o código do banco
+    if (error && /id_banco/.test(error.message)) {
+      lista = lista.map(({ id_banco: _, ...resto }) => resto);
+      ({ error } = await supabase().from(tabela).insert(lista.slice(i, i + 500)));
+    }
+    if (error) throw new Error(error.message);
+  }
+}
+
 export async function excluir(tabela: Tabela, id: string): Promise<void> {
   if (modoDemo) {
     const d = lerDemo();
