@@ -4,6 +4,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { combinar, type Leitura } from "./comprovante";
 import { dataCurta, NOME_FORMA, reais } from "./formato";
+import type { TipoRelatorio } from "./relatorio";
 import { sugerirCategorias } from "./sugestao";
 import type { Cartao, Categoria, Conta, Dono, Lancamento, RegraCategoria } from "./tipos";
 
@@ -40,6 +41,7 @@ export type Recado =
   | { id: string; de: string; tipo: "texto"; texto: string }
   | { id: string; de: string; tipo: "arquivo"; midiaId: string; legenda: string }
   | { id: string; de: string; tipo: "botao"; resposta: "sim" | "nao" }
+  | { id: string; de: string; tipo: "relatorio"; qual: TipoRelatorio }
   | { id: string; de: string; tipo: "outro" };
 
 /** Tira os recados do pacote que a Meta manda (ignora avisos de entregue/lido). */
@@ -51,9 +53,13 @@ export function recadosDoPacote(pacote: unknown): Recado[] {
       for (const m of (ch.value?.messages ?? []) as Record<string, any>[]) {
         const base = { id: String(m.id ?? ""), de: String(m.from ?? "") };
         if (!base.id || !base.de) continue;
-        if (m.type === "text") lista.push({ ...base, tipo: "texto", texto: String(m.text?.body ?? "") });
+        if (m.type === "text" && !pedidoDeRelatorio(String(m.text?.body ?? ""))) lista.push({ ...base, tipo: "texto", texto: String(m.text?.body ?? "") });
         else if (m.type === "interactive" && m.interactive?.type === "button_reply")
           lista.push({ ...base, tipo: "botao", resposta: m.interactive.button_reply?.id === "sim" ? "sim" : "nao" });
+        else if (m.type === "button" && String(m.button?.payload ?? "").startsWith("relatorio"))
+          lista.push({ ...base, tipo: "relatorio", qual: String(m.button.payload).endsWith("fechamento") ? "fechamento" : "semanal" });
+        else if (m.type === "text" && pedidoDeRelatorio(String(m.text?.body ?? "")))
+          lista.push({ ...base, tipo: "relatorio", qual: pedidoDeRelatorio(String(m.text.body))! });
         else if (m.type === "button") lista.push({ ...base, tipo: "botao", resposta: ehSim(String(m.button?.text ?? "")) ? "sim" : "nao" });
         else if (m.type === "image" || m.type === "document")
           lista.push({ ...base, tipo: "arquivo", midiaId: String(m[m.type]?.id ?? ""), legenda: String(m[m.type]?.caption ?? "") });
@@ -79,6 +85,14 @@ export function ehNao(texto: string): boolean {
   return /^(nao|n|no|deixa|esquece)\b/.test(semAcento(texto)) && semAcento(texto).split(" ").length <= 3;
 }
 
+/** "relatório", "resumo" ou "fechamento" digitado sozinho pede o relatório na hora. */
+export function pedidoDeRelatorio(texto: string): TipoRelatorio | null {
+  const t = semAcento(texto).replace(/[.!?]/g, "").trim();
+  if (/^(fechamento|fechamento do mes)$/.test(t)) return "fechamento";
+  if (/^(relatorio|resumo|resumo da semana|relatorio da semana)$/.test(t)) return "semanal";
+  return null;
+}
+
 export function ehAjuda(texto: string): boolean {
   return /^(oi|ola|ajuda|menu|help|bom dia|boa tarde|boa noite)\b/.test(semAcento(texto));
 }
@@ -90,6 +104,7 @@ export const AJUDA = [
   "• recebi 1500 aluguel",
   "• foto ou PDF de um comprovante",
   "Errou? Responda *desfaz* que eu apago o último que lancei.",
+  "Quer ver como está o mês? Mande *resumo* (ou *fechamento*, para o mês passado).",
 ].join("\n");
 
 type Cadastros = {

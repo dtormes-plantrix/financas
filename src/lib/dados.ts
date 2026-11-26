@@ -101,9 +101,9 @@ function separar(d: Dados): Dados {
 
 // ---------- operações ----------
 
-export async function carregarTudo(): Promise<Dados> {
+/** `s` permite ao servidor (ex.: relatório do WhatsApp) usar a chave de serviço. */
+export async function carregarTudo(s: SupabaseClient = supabase()): Promise<Dados> {
   if (modoDemo) return separar(lerDemo());
-  const s = supabase();
   const [membros, contas, cartoes, fontes, categorias, lancamentos, faturas, compromissos, transferencias, negocios, grupos, gruposNegocio, recorrentes, regras, marcacao] = await Promise.all([
     s.from("membros").select("*"),
     s.from("contas").select("*").order("nome"),
