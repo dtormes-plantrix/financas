@@ -39,6 +39,7 @@ export function quemEnviou(numero: string, pessoas: Map<string, Exclude<Dono, "c
 export type Recado =
   | { id: string; de: string; tipo: "texto"; texto: string }
   | { id: string; de: string; tipo: "arquivo"; midiaId: string; legenda: string }
+  | { id: string; de: string; tipo: "botao"; resposta: "sim" | "nao" }
   | { id: string; de: string; tipo: "outro" };
 
 /** Tira os recados do pacote que a Meta manda (ignora avisos de entregue/lido). */
@@ -51,6 +52,9 @@ export function recadosDoPacote(pacote: unknown): Recado[] {
         const base = { id: String(m.id ?? ""), de: String(m.from ?? "") };
         if (!base.id || !base.de) continue;
         if (m.type === "text") lista.push({ ...base, tipo: "texto", texto: String(m.text?.body ?? "") });
+        else if (m.type === "interactive" && m.interactive?.type === "button_reply")
+          lista.push({ ...base, tipo: "botao", resposta: m.interactive.button_reply?.id === "sim" ? "sim" : "nao" });
+        else if (m.type === "button") lista.push({ ...base, tipo: "botao", resposta: ehSim(String(m.button?.text ?? "")) ? "sim" : "nao" });
         else if (m.type === "image" || m.type === "document")
           lista.push({ ...base, tipo: "arquivo", midiaId: String(m[m.type]?.id ?? ""), legenda: String(m[m.type]?.caption ?? "") });
         else lista.push({ ...base, tipo: "outro" });
@@ -64,6 +68,15 @@ const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLo
 
 export function ehDesfazer(texto: string): boolean {
   return /^(desfaz|desfazer|apaga|apagar|cancela|cancelar)\b/.test(semAcento(texto));
+}
+
+/** Resposta à pergunta "Lançar mesmo assim?" digitada em vez de tocar no botão. */
+export function ehSim(texto: string): boolean {
+  return /^(sim|s|pode|lanca|lancar|isso|ok|yes)\b/.test(semAcento(texto)) && semAcento(texto).split(" ").length <= 3;
+}
+
+export function ehNao(texto: string): boolean {
+  return /^(nao|n|no|deixa|esquece)\b/.test(semAcento(texto)) && semAcento(texto).split(" ").length <= 3;
 }
 
 export function ehAjuda(texto: string): boolean {

@@ -3,6 +3,8 @@
 //  - POST: chega um recado. Responde "ok" na hora e faz o trabalho logo depois:
 //    texto ("mercado 85 cartão MP") ou foto/PDF de comprovante viram lançamento;
 //    "desfaz" apaga o último lançamento que veio do WhatsApp.
+//    Se parecer repetido (mesmo valor e descrição parecida há poucos dias), pergunta
+//    "Lançar mesmo assim?" com botões Sim/Não e guarda o lançamento em whatsapp_pendentes.
 // Só aceita os números de WHATSAPP_PESSOAS (Diego e Jô). Os demais são ignorados.
 
 import { after } from "next/server";
@@ -10,12 +12,15 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { heicParaJpeg } from "@/lib/heic";
 import { lerComprovante, lerTexto, tipoDoArquivo, type Contexto, type Leitura } from "@/lib/comprovante";
 import { reais } from "@/lib/formato";
+import { acharRepetido, DIAS_REPETIDO, textoRepetido } from "@/lib/repetido";
 import type { Cartao, Categoria, Conta, GrupoCategoria, Lancamento, RegraCategoria } from "@/lib/tipos";
 import {
   AJUDA,
   assinaturaValida,
   ehAjuda,
   ehDesfazer,
+  ehNao,
+  ehSim,
   lerPessoas,
   montarLancamento,
   quemEnviou,
@@ -90,6 +95,12 @@ async function tratar(r: Recado) {
   const membro = await s.from("membros").select("user_id").eq("apelido", quem).limit(1);
   const criadoPor: string | null = membro.data?.[0]?.user_id ?? null;
 
+  // Resposta à pergunta "Lançar mesmo assim?"
+  if (r.tipo === "botao") return responderPendente(s, r.de, r.resposta);
+  if (r.tipo === "texto" && (ehSim(r.texto) || ehNao(r.texto))) {
+    if (await responderPendente(s, r.de, ehSim(r.texto) ? "sim" : "nao", true)) return;
+  }
+
   if (r.tipo === "outro") return responder(r.de, "Por enquanto eu entendo texto, foto e PDF.\n\n" + AJUDA);
   if (r.tipo === "texto" && ehAjuda(r.texto)) return responder(r.de, AJUDA);
   if (r.tipo === "texto" && ehDesfazer(r.texto)) return desfazer(s, r.de, criadoPor);
@@ -118,12 +129,72 @@ async function tratar(r: Recado) {
   }
 
   const registro = montarLancamento(leitura, quem, cad, { hoje, whatsappId: r.id, criadoPor });
+
+  // Parece já lançado? Pergunta antes (a compra pode ter sido feita duas vezes, então dá para lançar).
+  const pergunta = await perguntaDeRepetido(s, registro, criadoPor);
+  if (pergunta) {
+    const guardado = await s.from("whatsapp_pendentes").upsert({ telefone: r.de, registro, criado_em: new Date().toISOString() });
+    if (!guardado.error) return perguntar(r.de, `⚠️ ${pergunta}`);
+    // sem a atualização 0013 ainda: lança e só avisa
+    return lancar(s, r.de, registro, cad, hoje, `⚠️ ${pergunta.replace(" Lançar mesmo assim?", "")} Se for repetido, responda *desfaz*.`);
+  }
+  await lancar(s, r.de, registro, cad, hoje);
+}
+
+type Cadastros = Awaited<ReturnType<typeof carregarCadastros>>;
+
+async function lancar(s: SupabaseClient, para: string, registro: Partial<Lancamento>, cad: Cadastros, hoje: string, nota = "") {
   const { error } = await s.from("lancamentos").insert(registro);
   if (error) {
     if (error.code === "23505") return; // já lançado (recado repetido)
     throw new Error(error.message);
   }
-  await responder(r.de, textoConfirmacao(registro, cad, hoje));
+  await responder(para, [nota, textoConfirmacao(registro, cad, hoje)].filter(Boolean).join("\n\n"));
+}
+
+/** Procura um lançamento parecido feito nos últimos dias e monta a pergunta (ou null). */
+async function perguntaDeRepetido(s: SupabaseClient, registro: Partial<Lancamento>, criadoPor: string | null) {
+  if (!registro.tipo || !registro.valor || !registro.data) return null;
+  const desde = new Date(Date.now() - DIAS_REPETIDO * 86400000).toISOString();
+  const { data, error } = await s
+    .from("lancamentos")
+    .select("id, tipo, valor, data, descricao, criado_por, criado_em")
+    .eq("valor", registro.valor)
+    .gte("criado_em", desde);
+  if (error || !data?.length) return null;
+  const novo = { tipo: registro.tipo, valor: registro.valor, data: registro.data, descricao: registro.descricao ?? null };
+  const achado = acharRepetido(novo, data as Lancamento[]);
+  if (!achado) return null;
+  let quem: string | null = null;
+  if (achado.criado_por && achado.criado_por === criadoPor) quem = "Você";
+  else if (achado.criado_por) {
+    const m = await s.from("membros").select("nome").eq("user_id", achado.criado_por).limit(1);
+    quem = m.data?.[0]?.nome ?? null;
+  }
+  return textoRepetido(achado, quem);
+}
+
+/**
+ * Sim/Não para o lançamento que ficou esperando. Devolve false quando não havia nada esperando
+ * (aí um "sim" digitado segue como recado normal, se `seguir` for true).
+ */
+async function responderPendente(s: SupabaseClient, para: string, resposta: "sim" | "nao", seguir = false): Promise<boolean> {
+  const { data } = await s.from("whatsapp_pendentes").select("registro, criado_em").eq("telefone", para).limit(1);
+  const pendente = data?.[0];
+  const valido = pendente && Date.now() - Date.parse(pendente.criado_em) < 24 * 3600 * 1000;
+  if (!valido) {
+    if (seguir) return false;
+    await responder(para, "Não tinha nada esperando resposta. Se quiser lançar, mande o gasto de novo.");
+    return true;
+  }
+  await s.from("whatsapp_pendentes").delete().eq("telefone", para);
+  const registro = pendente.registro as Partial<Lancamento>;
+  if (resposta === "nao") {
+    await responder(para, `👍 Ok, não lancei ${reais(Number(registro.valor))}${registro.descricao ? ` · ${registro.descricao}` : ""}.`);
+    return true;
+  }
+  await lancar(s, para, registro, await carregarCadastros(s), hojeEmCuiaba());
+  return true;
 }
 
 async function desfazer(s: SupabaseClient, para: string, criadoPor: string | null) {
@@ -175,6 +246,31 @@ async function baixarMidia(midiaId: string): Promise<{ bytes: Uint8Array; tipo: 
   }
   if (!tipo || !TIPOS_ACEITOS.includes(tipo)) throw new Error("Envie uma foto (JPG ou PNG) ou um PDF.");
   return { bytes, tipo };
+}
+
+/** Pergunta com dois botões: Sim (lança) e Não (descarta). */
+async function perguntar(para: string, texto: string) {
+  const r = await fetch(`${GRAPH}/${env("WHATSAPP_NUMERO_ID")}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env("WHATSAPP_TOKEN")}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: para,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: texto.slice(0, 1000) },
+        action: {
+          buttons: [
+            { type: "reply", reply: { id: "sim", title: "Sim, lançar" } },
+            { type: "reply", reply: { id: "nao", title: "Não" } },
+          ],
+        },
+      },
+    }),
+  });
+  // se os botões falharem, manda em texto (a pessoa responde "sim" ou "não")
+  if (!r.ok) await responder(para, `${texto}\nResponda *sim* ou *não*.`);
 }
 
 async function responder(para: string, texto: string) {

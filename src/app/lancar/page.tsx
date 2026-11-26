@@ -11,6 +11,7 @@ import { nomeMes, parcelasDaCompra } from "@/lib/fatura";
 import { hoje, lerValor, NOME_DONO, NOME_FORMA, reais } from "@/lib/formato";
 import { marcacaoPorPalavra } from "@/lib/negocios";
 import { buscaDaDescricao, normalizar, regraPara } from "@/lib/orcamento";
+import { acharRepetido, DIAS_REPETIDO, textoRepetido } from "@/lib/repetido";
 import { descricaoAmbigua, sugerirCategorias } from "@/lib/sugestao";
 import type { Dono, Forma, Lancamento, TipoLancamento } from "@/lib/tipos";
 
@@ -104,6 +105,7 @@ function Lancar() {
   const [maisDetalhes, setMaisDetalhes] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [repetido, setRepetido] = useState<string | null>(null);
   const [lendo, setLendo] = useState(false);
   const [doComprovante, setDoComprovante] = useState(false);
   const [finalLido, setFinalLido] = useState<string | null>(null);
@@ -237,7 +239,30 @@ function Lancar() {
     return parcelas > 1 ? `${texto}. ${parcelas}x de ${reais(p[p.length - 1].valor)}, até ${nomeMes(p[p.length - 1].fatura, true)}.` : texto + ".";
   }, [ehCredito, cartao, valor, parcelas, data]);
 
-  async function aoSalvar() {
+  // mudou o valor ou a descrição: a pergunta de repetido não vale mais
+  useEffect(() => setRepetido(null), [valor, descricao, tipo, data]);
+
+  /** Procura um lançamento parecido feito nos últimos dias (por você ou pela outra pessoa). */
+  async function avisoDeRepetido(): Promise<string | null> {
+    const novo = { tipo, valor, data, descricao: descricao.trim() || null };
+    let existentes: Lancamento[] = [...dados.lancamentos, ...(dados.lancamentosNegocios ?? [])];
+    if (!modoDemo) {
+      // busca de novo no banco: a outra pessoa pode ter lançado agora há pouco
+      const desde = new Date(Date.now() - DIAS_REPETIDO * 86400000).toISOString();
+      const { data: recentes, error } = await supabase()
+        .from("lancamentos")
+        .select("id, tipo, valor, data, descricao, criado_por, criado_em")
+        .eq("valor", valor)
+        .gte("criado_em", desde);
+      if (!error) existentes = recentes as Lancamento[];
+    }
+    const achado = acharRepetido(novo, existentes);
+    if (!achado) return null;
+    const quem = achado.criado_por === eu.user_id ? "Você" : dados.membros.find((m) => m.user_id === achado.criado_por)?.nome ?? null;
+    return textoRepetido(achado, quem);
+  }
+
+  async function aoSalvar(mesmoAssim = false) {
     if (valor <= 0) {
       campoValor.current?.focus();
       return;
@@ -248,6 +273,15 @@ function Lancar() {
       return;
     }
     setSalvando(true);
+    if (!editando && !mesmoAssim) {
+      const pergunta = await avisoDeRepetido().catch(() => null);
+      if (pergunta) {
+        setRepetido(pergunta);
+        setSalvando(false);
+        return;
+      }
+    }
+    setRepetido(null);
     const formaFinal: Forma = ehTransferencia ? "pix" : tipo === "entrada" && forma === "credito" ? "pix" : forma;
     const registro: Partial<Lancamento> = {
       id: editando?.id,
@@ -535,7 +569,16 @@ function Lancar() {
         </div>
       )}
 
-      <button className="botao-principal" onClick={aoSalvar} disabled={salvando || valor <= 0}>
+      {repetido && (
+        <div role="alert" className="mb-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-tinta">
+          <p className="mb-3 font-medium">⚠️ {repetido}</p>
+          <div className="flex gap-2">
+            <button className="botao-principal flex-1" onClick={() => aoSalvar(true)} disabled={salvando}>Sim, lançar</button>
+            <button className="botao-secundario flex-1" onClick={() => setRepetido(null)}>Não</button>
+          </div>
+        </div>
+      )}
+      <button className="botao-principal" onClick={() => aoSalvar()} disabled={salvando || valor <= 0}>
         {salvando ? "Salvando…" : editando ? "Salvar alteração" : "Salvar"}
       </button>
       {editando && (
