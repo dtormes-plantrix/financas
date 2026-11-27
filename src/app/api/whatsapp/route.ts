@@ -13,7 +13,8 @@ import { heicParaJpeg } from "@/lib/heic";
 import { lerComprovante, lerTexto, tipoDoArquivo, type Contexto, type Leitura } from "@/lib/comprovante";
 import { carregarTudo } from "@/lib/dados";
 import { reais } from "@/lib/formato";
-import { textoRelatorio } from "@/lib/relatorio";
+import { chaveMes } from "@/lib/fatura";
+import { contasSemBaixa, textoRelatorio, textoSemBaixa } from "@/lib/relatorio";
 import { acharRepetido, DIAS_REPETIDO, textoRepetido } from "@/lib/repetido";
 import type { Cartao, Categoria, Conta, GrupoCategoria, Lancamento, RegraCategoria } from "@/lib/tipos";
 import {
@@ -84,7 +85,8 @@ function banco(): SupabaseClient {
   return createClient(url, chave, { auth: { persistSession: false } });
 }
 
-async function tratar(r: Recado) {
+async function tratar(recado: Recado) {
+  let r = recado;
   const quem = quemEnviou(r.de, lerPessoas(process.env.WHATSAPP_PESSOAS));
   if (!quem) return; // número desconhecido: nem responde
   const s = banco();
@@ -107,6 +109,13 @@ async function tratar(r: Recado) {
     if (await responderPendente(s, r.de, ehSim(r.texto) ? "sim" : "nao", true)) return;
   }
 
+  if (r.tipo === "vencidas") return responder(r.de, textoSemBaixa(contasSemBaixa(await carregarTudo(s), hojeEmCuiaba())));
+  if (r.tipo === "baixa") {
+    const feito = await darBaixa(s, r, quem);
+    if (feito) return;
+    // "paguei 200" sem lista que combine: segue como um lançamento normal
+    r = { id: r.id, de: r.de, tipo: "texto", texto: `paguei ${r.quais === "todas" ? "todas" : r.quais.join(" ")}` };
+  }
   if (r.tipo === "relatorio") return responder(r.de, textoRelatorio(r.qual, await carregarTudo(s), hojeEmCuiaba()));
   if (r.tipo === "outro") return responder(r.de, "Por enquanto eu entendo texto, foto e PDF.\n\n" + AJUDA);
   if (r.tipo === "texto" && ehAjuda(r.texto)) return responder(r.de, AJUDA);
@@ -146,6 +155,51 @@ async function tratar(r: Recado) {
     return lancar(s, r.de, registro, cad, hoje, `⚠️ ${pergunta.replace(" Lançar mesmo assim?", "")} Se for repetido, responda *desfaz*.`);
   }
   await lancar(s, r.de, registro, cad, hoje);
+}
+
+/**
+ * Dá baixa nas contas escolhidas da lista "vencidas" (mesma ordem do Calendário do app):
+ * fatura vira paga; parcela e despesa fixa de negócio viram um lançamento, como no app.
+ * Devolve false se algum número não estiver na lista.
+ */
+async function darBaixa(s: SupabaseClient, r: Extract<Recado, { tipo: "baixa" }>, quem: "diego" | "jo"): Promise<boolean> {
+  const dados = await carregarTudo(s);
+  const hoje = hojeEmCuiaba();
+  const lista = contasSemBaixa(dados, hoje);
+  if (r.quais !== "todas" && r.quais.some((n) => n > lista.length)) return false;
+  if (!lista.length) {
+    await responder(r.de, "👍 Nenhuma conta vencida sem baixa.");
+    return true;
+  }
+  const escolhidas = r.quais === "todas" ? lista : r.quais.map((n) => lista[n - 1]);
+  const membro = dados.membros.find((m) => m.apelido === quem);
+  const contaDaPessoa = (dados.contas.find((k) => k.ativo && k.dono === quem) ?? dados.contas.find((k) => k.ativo))?.id ?? null;
+  const feitas: string[] = [];
+  for (const [i, c] of escolhidas.entries()) {
+    let error: { message: string } | null = null;
+    if (c.tipo === "fatura" && c.cartao) {
+      ({ error } = await s
+        .from("faturas_informadas")
+        .upsert({ cartao_id: c.cartao.id, mes: chaveMes(c.mes), valor: c.valor, paga_em: hoje }, { onConflict: "cartao_id,mes" }));
+    } else if (c.tipo === "parcela" && c.compromisso) {
+      ({ error } = await s.from("lancamentos").insert({
+        tipo: "saida", valor: c.valor, data: hoje, descricao: c.compromisso.nome, forma: "pix",
+        conta_id: c.compromisso.conta_id ?? contaDaPessoa, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: null,
+        de_quem: "casa", compromisso_id: c.compromisso.id, criado_por: membro?.user_id ?? null, whatsapp_id: `${r.id}:${i}`,
+      }));
+    } else if (c.tipo === "negocio" && c.modelo && c.negocio) {
+      const m = c.modelo;
+      ({ error } = await s.from("lancamentos").insert({
+        tipo: "saida", valor: c.valor, data: hoje, descricao: m.descricao, forma: m.forma === "credito" ? "pix" : m.forma,
+        conta_id: m.conta_id ?? contaDaPessoa, cartao_id: null, parcelas: 1, fonte_id: null, categoria_id: m.categoria_id,
+        de_quem: m.de_quem, negocio_id: c.negocio.id, grupo: "fixa", criado_por: membro?.user_id ?? null, whatsapp_id: `${r.id}:${i}`,
+      }));
+    }
+    if (error) throw new Error(`não consegui dar baixa em ${c.nome}: ${error.message}`);
+    feitas.push(`• ${c.nome}: ${reais(c.valor)}`);
+  }
+  await responder(r.de, ["✅ Marquei como pagas:", ...feitas].join("\n"));
+  return true;
 }
 
 type Cadastros = Awaited<ReturnType<typeof carregarCadastros>>;

@@ -5,7 +5,7 @@
 //  - Todo dia: aviso quando uma categoria passa de 90% (ou estoura) o orçamento.
 // Aqui só se monta o texto (dá para testar sem a Meta). Quem envia é /api/relatorio.
 
-import { calendario } from "./calendario";
+import { calendario, type ContaDoCalendario } from "./calendario";
 import { chaveMes, lerData, nomeMes, somarMeses, type Mes } from "./fatura";
 import { dataCurta, reais } from "./formato";
 import { sobraPrevista } from "./negocios";
@@ -94,7 +94,8 @@ export function textoSemanal(dados: Dados, hoje: string): string {
   const doMes = dados.lancamentos.filter((l) => noMes(l.data, mes));
   const { orcamento, rAtual, rSeguinte } = previsao(dados, hoje);
   const cal = calendario(dados, hoje);
-  const contas = [...cal.vencidas, ...cal.hoje, ...cal.semana];
+  const contas = [...cal.hoje, ...cal.semana];
+  const vencidas = cal.vencidas;
 
   return [
     `📊 *Resumo da semana* (${dataCurta(desde)} a ${dataCurta(ontem)})`,
@@ -108,8 +109,12 @@ export function textoSemanal(dados: Dados, hoje: string): string {
     "",
     "*Contas dos próximos 7 dias*",
     ...(contas.length
-      ? contas.map((c) => `• ${c.vence < hoje ? "⚠️ vencida " : ""}${dataCurta(c.vence)} ${c.nome}: ${reais(c.valor)}`)
+      ? contas.map((c) => `• ${dataCurta(c.vence)} ${c.nome}: ${reais(c.valor)}`)
       : ["Nenhuma conta a pagar."]),
+    // Vencidas numa linha só: quase sempre são contas já pagas que faltou dar baixa no Calendário.
+    ...(vencidas.length
+      ? [`⚠️ ${vencidas.length} conta${vencidas.length === 1 ? "" : "s"} vencida${vencidas.length === 1 ? "" : "s"} sem baixa (${reais(r2(vencidas.reduce((s, c) => s + c.valor, 0)))}). Se já pagou, mande *vencidas* aqui para dar baixa.`]
+      : []),
     "",
     "*Previsão*",
     `${maiuscula(nomeMes(rAtual.mes))}: vai ${sobraOuFalta(rAtual.sobra)}`,
@@ -209,4 +214,22 @@ export function textoAviso(a: AvisoOrcamento): string {
 export function camposDoAviso(a: AvisoOrcamento): [string, string, string, string] {
   const { categoria, gasto, orcamento } = a.item;
   return [categoria.nome, pct(gasto, orcamento), reais(gasto), reais(orcamento)];
+}
+
+// ───────── dar baixa nas contas pelo WhatsApp ─────────
+
+/** Contas vencidas ou de hoje ainda sem baixa, na ordem em que aparecem numeradas no WhatsApp. */
+export function contasSemBaixa(dados: Dados, hoje: string): ContaDoCalendario[] {
+  const cal = calendario(dados, hoje);
+  return [...cal.vencidas, ...cal.hoje];
+}
+
+export function textoSemBaixa(contas: ContaDoCalendario[]): string {
+  if (!contas.length) return "👍 Nenhuma conta vencida sem baixa.";
+  return [
+    "*Contas vencidas sem baixa*",
+    ...contas.map((c, i) => `${i + 1}. ${dataCurta(c.vence)} ${c.nome}: ${reais(c.valor)}`),
+    "",
+    "Responda *paguei 1 3 5* com os números das que já pagou, ou *paguei todas*.",
+  ].join("\n");
 }

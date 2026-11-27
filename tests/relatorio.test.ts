@@ -102,3 +102,32 @@ describe("pedido de relatório no WhatsApp", () => {
     expect(janelaAberta(null, agora)).toBe(false);
   });
 });
+
+describe("contas vencidas", () => {
+  it("resume as vencidas numa linha", () => {
+    const d = dados([l({ valor: 500, data: "2026-10-25", forma: "credito", cartao_id: "k" })]);
+    const t = textoSemanal(d, "2026-11-30");
+    expect(t).toContain("⚠️ 1 conta vencida sem baixa (R$ 500,00)");
+    expect(t).not.toContain("vencida 27/11");
+  });
+});
+
+describe("dar baixa pelo WhatsApp", () => {
+  it("entende vencidas e paguei", async () => {
+    const { ehPedidoDeVencidas, pedidoDeBaixa } = await import("../src/lib/whatsapp");
+    expect(ehPedidoDeVencidas("Vencidas")).toBe(true);
+    expect(pedidoDeBaixa("Paguei 1, 3 e 5")).toEqual([1, 3, 5]);
+    expect(pedidoDeBaixa("paguei todas")).toBe("todas");
+    expect(pedidoDeBaixa("paguei 200 no mercado")).toBeNull();
+    expect(pedidoDeBaixa("mercado 85")).toBeNull();
+  });
+
+  it("lista numerada das vencidas", async () => {
+    const { contasSemBaixa, textoSemBaixa } = await import("../src/lib/relatorio");
+    const d = dados([l({ valor: 500, data: "2026-10-25", forma: "credito", cartao_id: "k" })]);
+    const lista = contasSemBaixa(d, "2026-11-30");
+    expect(lista.map((c) => c.nome)).toEqual(["Fatura Nubank"]);
+    expect(textoSemBaixa(lista)).toContain("1. 27/11 Fatura Nubank: R$ 500,00");
+    expect(textoSemBaixa([])).toContain("Nenhuma conta vencida");
+  });
+});
