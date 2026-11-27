@@ -94,7 +94,8 @@ export function textoSemanal(dados: Dados, hoje: string): string {
   const doMes = dados.lancamentos.filter((l) => noMes(l.data, mes));
   const { orcamento, rAtual, rSeguinte } = previsao(dados, hoje);
   const cal = calendario(dados, hoje);
-  const contas = [...cal.vencidas, ...cal.hoje, ...cal.semana];
+  const contas = [...cal.hoje, ...cal.semana];
+  const vencidas = cal.vencidas;
 
   return [
     `📊 *Resumo da semana* (${dataCurta(desde)} a ${dataCurta(ontem)})`,
@@ -108,8 +109,12 @@ export function textoSemanal(dados: Dados, hoje: string): string {
     "",
     "*Contas dos próximos 7 dias*",
     ...(contas.length
-      ? contas.map((c) => `• ${c.vence < hoje ? "⚠️ vencida " : ""}${dataCurta(c.vence)} ${c.nome}: ${reais(c.valor)}`)
+      ? contas.map((c) => `• ${dataCurta(c.vence)} ${c.nome}: ${reais(c.valor)}`)
       : ["Nenhuma conta a pagar."]),
+    // Vencidas numa linha só: quase sempre são contas já pagas que faltou dar baixa no Calendário.
+    ...(vencidas.length
+      ? [`⚠️ ${vencidas.length} conta${vencidas.length === 1 ? "" : "s"} vencida${vencidas.length === 1 ? "" : "s"} sem baixa (${reais(r2(vencidas.reduce((s, c) => s + c.valor, 0)))}). Se já pagou, marque como paga no Calendário do app.`]
+      : []),
     "",
     "*Previsão*",
     `${maiuscula(nomeMes(rAtual.mes))}: vai ${sobraOuFalta(rAtual.sobra)}`,

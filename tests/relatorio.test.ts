@@ -102,3 +102,12 @@ describe("pedido de relatório no WhatsApp", () => {
     expect(janelaAberta(null, agora)).toBe(false);
   });
 });
+
+describe("contas vencidas", () => {
+  it("resume as vencidas numa linha", () => {
+    const d = dados([l({ valor: 500, data: "2026-10-25", forma: "credito", cartao_id: "k" })]);
+    const t = textoSemanal(d, "2026-11-30");
+    expect(t).toContain("⚠️ 1 conta vencida sem baixa (R$ 500,00)");
+    expect(t).not.toContain("vencida 27/11");
+  });
+});
