@@ -35,3 +35,30 @@ apagar o último. Só os números do Diego e da Jô são atendidos.
 
 - Meta: grátis quando vocês escrevem e o app responde (em até 24 horas).
 - Anthropic: centavos por recado (mesma IA da leitura de comprovantes).
+
+## Relatório e avisos de orçamento
+
+Todo dia às 8h (Cuiabá) a Vercel chama `/api/relatorio` (veja `vercel.json`):
+
+- **Segunda:** resumo da semana (gastos, orçamento, contas dos próximos 7 dias e previsão).
+- **Dia 1:** fechamento do mês anterior.
+- **Qualquer dia:** aviso quando uma categoria passa de 90% ou estoura o orçamento (uma vez por mês cada).
+- A qualquer hora, mande **resumo** ou **fechamento** no WhatsApp para receber na hora.
+
+Regra da Meta: o app só manda texto livre até 24h depois da última mensagem da pessoa. Fora disso, manda um
+**modelo de mensagem** aprovado, com o botão "Ver relatório"; ao tocar, chega o relatório completo.
+
+### Criar os 2 modelos (uma vez)
+
+No [WhatsApp Manager](https://business.facebook.com/wa/manage/message-templates/), conta "Financas Tormes",
+**Criar modelo**, categoria **Utilidade**, idioma **Português (BR)**:
+
+1. Nome `relatorio_financas`
+   - Corpo: `Olá! O {{1}} das finanças da casa está pronto. A previsão para {{2}} é {{3}}. Toque no botão abaixo para ver os detalhes.`
+   - Exemplos: `resumo da semana`, `dezembro`, `sobrar R$ 1.200,00`
+   - Botão: **Resposta rápida** com o texto `Ver relatório`
+2. Nome `aviso_orcamento`
+   - Corpo: `Atenção: a categoria {{1}} já chegou a {{2}} do orçamento do mês. Gasto até agora: {{3}} de {{4}}. Confira os detalhes no app Finanças.`
+   - Exemplos: `Mercado`, `92%`, `R$ 1.840,00`, `R$ 2.000,00`
+
+Banco: rodar `supabase/migrations/0014_relatorio_whatsapp.sql` no SQL Editor do Supabase.

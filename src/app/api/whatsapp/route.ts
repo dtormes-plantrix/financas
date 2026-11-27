@@ -11,7 +11,9 @@ import { after } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { heicParaJpeg } from "@/lib/heic";
 import { lerComprovante, lerTexto, tipoDoArquivo, type Contexto, type Leitura } from "@/lib/comprovante";
+import { carregarTudo } from "@/lib/dados";
 import { reais } from "@/lib/formato";
+import { textoRelatorio } from "@/lib/relatorio";
 import { acharRepetido, DIAS_REPETIDO, textoRepetido } from "@/lib/repetido";
 import type { Cartao, Categoria, Conta, GrupoCategoria, Lancamento, RegraCategoria } from "@/lib/tipos";
 import {
@@ -87,6 +89,10 @@ async function tratar(r: Recado) {
   if (!quem) return; // número desconhecido: nem responde
   const s = banco();
 
+  // Guarda quando a pessoa escreveu (abre a janela de 24h para o relatório ir em texto livre).
+  // Sem a atualização 0014 ainda, só não guarda.
+  await s.from("whatsapp_contatos").upsert({ quem, telefone: r.de, ultima_mensagem: new Date().toISOString() });
+
   // A Meta às vezes manda o mesmo recado duas vezes.
   const repetido = await s.from("lancamentos").select("id").eq("whatsapp_id", r.id).limit(1);
   if (repetido.error) throw new Error("Falta rodar a atualização 0010_whatsapp.sql no Supabase.");
@@ -101,6 +107,7 @@ async function tratar(r: Recado) {
     if (await responderPendente(s, r.de, ehSim(r.texto) ? "sim" : "nao", true)) return;
   }
 
+  if (r.tipo === "relatorio") return responder(r.de, textoRelatorio(r.qual, await carregarTudo(s), hojeEmCuiaba()));
   if (r.tipo === "outro") return responder(r.de, "Por enquanto eu entendo texto, foto e PDF.\n\n" + AJUDA);
   if (r.tipo === "texto" && ehAjuda(r.texto)) return responder(r.de, AJUDA);
   if (r.tipo === "texto" && ehDesfazer(r.texto)) return desfazer(s, r.de, criadoPor);
@@ -120,7 +127,7 @@ async function tratar(r: Recado) {
   if (r.tipo === "texto") {
     leitura = await lerTexto(chaveIA, r.texto, ctx);
     if (leitura.valor <= 0) {
-      return responder(r.de, "Não achei um valor nesse recado. Perguntas sobre o mês chegam na próxima etapa.\n\n" + AJUDA);
+      return responder(r.de, "Não achei um valor nesse recado. Para ver como está o mês, mande *resumo*.\n\n" + AJUDA);
     }
   } else {
     const { bytes, tipo } = await baixarMidia(r.midiaId);
