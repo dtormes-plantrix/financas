@@ -44,6 +44,7 @@ Todo dia às 8h (Cuiabá) a Vercel chama `/api/relatorio` (veja `vercel.json`):
 - **Dia 1:** fechamento do mês anterior.
 - **Qualquer dia:** aviso quando uma categoria passa de 90% ou estoura o orçamento (uma vez por mês cada).
 - A qualquer hora, mande **resumo** ou **fechamento** no WhatsApp para receber na hora.
+- Mande **vencidas** para ver as contas sem baixa numeradas e responda **paguei 1 3** (ou **paguei todas**). Fatura vira paga; parcela e despesa fixa viram lançamento, como no Calendário do app.
 
 Regra da Meta: o app só manda texto livre até 24h depois da última mensagem da pessoa. Fora disso, manda um
 **modelo de mensagem** aprovado, com o botão "Ver relatório"; ao tocar, chega o relatório completo.

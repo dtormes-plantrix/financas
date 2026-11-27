@@ -42,6 +42,8 @@ export type Recado =
   | { id: string; de: string; tipo: "arquivo"; midiaId: string; legenda: string }
   | { id: string; de: string; tipo: "botao"; resposta: "sim" | "nao" }
   | { id: string; de: string; tipo: "relatorio"; qual: TipoRelatorio }
+  | { id: string; de: string; tipo: "vencidas" }
+  | { id: string; de: string; tipo: "baixa"; quais: number[] | "todas" }
   | { id: string; de: string; tipo: "outro" };
 
 /** Tira os recados do pacote que a Meta manda (ignora avisos de entregue/lido). */
@@ -53,7 +55,11 @@ export function recadosDoPacote(pacote: unknown): Recado[] {
       for (const m of (ch.value?.messages ?? []) as Record<string, any>[]) {
         const base = { id: String(m.id ?? ""), de: String(m.from ?? "") };
         if (!base.id || !base.de) continue;
-        if (m.type === "text" && !pedidoDeRelatorio(String(m.text?.body ?? ""))) lista.push({ ...base, tipo: "texto", texto: String(m.text?.body ?? "") });
+        const texto = m.type === "text" ? String(m.text?.body ?? "") : "";
+        const baixa = texto ? pedidoDeBaixa(texto) : null;
+        if (baixa) lista.push({ ...base, tipo: "baixa", quais: baixa });
+        else if (texto && ehPedidoDeVencidas(texto)) lista.push({ ...base, tipo: "vencidas" });
+        else if (m.type === "text" && !pedidoDeRelatorio(texto)) lista.push({ ...base, tipo: "texto", texto });
         else if (m.type === "interactive" && m.interactive?.type === "button_reply")
           lista.push({ ...base, tipo: "botao", resposta: m.interactive.button_reply?.id === "sim" ? "sim" : "nao" });
         else if (m.type === "button" && String(m.button?.payload ?? "").startsWith("relatorio"))
@@ -93,6 +99,21 @@ export function pedidoDeRelatorio(texto: string): TipoRelatorio | null {
   return null;
 }
 
+export function ehPedidoDeVencidas(texto: string): boolean {
+  return /^(vencidas|contas vencidas|contas|dar baixa|baixa)$/.test(semAcento(texto).replace(/[.!?]/g, "").trim());
+}
+
+/** "paguei 1 3", "paguei 1,3 e 5", "paguei todas" -> números (a partir de 1) ou "todas". */
+export function pedidoDeBaixa(texto: string): number[] | "todas" | null {
+  const t = semAcento(texto).replace(/[.!?]/g, "").trim();
+  const m = /^(paguei|pagas)\s+(.+)$/.exec(t);
+  if (!m) return null;
+  if (/^(todas|tudo|todas elas)$/.test(m[2])) return "todas";
+  if (!/^[\d\s,e]+$/.test(m[2])) return null;
+  const nums = [...new Set((m[2].match(/\d+/g) ?? []).map(Number).filter((n) => n > 0))];
+  return nums.length ? nums : null;
+}
+
 export function ehAjuda(texto: string): boolean {
   return /^(oi|ola|ajuda|menu|help|bom dia|boa tarde|boa noite)\b/.test(semAcento(texto));
 }
@@ -105,6 +126,7 @@ export const AJUDA = [
   "• foto ou PDF de um comprovante",
   "Errou? Responda *desfaz* que eu apago o último que lancei.",
   "Quer ver como está o mês? Mande *resumo* (ou *fechamento*, para o mês passado).",
+  "Para dar baixa em contas já pagas, mande *vencidas*.",
 ].join("\n");
 
 type Cadastros = {
